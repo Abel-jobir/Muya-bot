@@ -1,4 +1,5 @@
 import logging
+import json
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (Application, CommandHandler, MessageHandler, filters,
@@ -11,8 +12,10 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import tempfile
 import os
-import re # Import the regular expression module
 
+import re # Import the regular expression module
+if not TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN environment variable not set.")
 # Enable logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -21,7 +24,13 @@ logger = logging.getLogger(__name__)
 
 # Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("debo-registration-ad20d23ce5bd.json", scope)
+creds_json_str = os.environ.get("deboregist")
+if not creds_json_str:
+    raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
+with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_creds_file:
+    temp_creds_file.write(creds_json_str)
+    temp_file_path = temp_creds_file.name
+creds = ServiceAccountCredentials.from_json_keyfile_name(temp_file_path, scope)
 client = gspread.authorize(creds)
 sheet = client.open("Professionals").sheet1
 
@@ -676,8 +685,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
-    app = Application.builder().token("7620777682:AAFEUcuDzjI5MHUq9b9Td6gE9pGqFhRVSzE").build()
-
+    app = Application.builder().token(TOKEN).build()
     app.add_handler(ChatMemberHandler(greet_new_user, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("profile", profile))
