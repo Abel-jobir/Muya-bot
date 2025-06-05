@@ -2,5 +2,6 @@ python-telegram-bot==20.6
 gspread
 oauth2client
 google-api-python-client
-Flask  # Add this
-gunicorn # Add this
+Flask
+gunicorn
+psutil
