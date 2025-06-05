@@ -1,15 +1,15 @@
 # entrypoint.py
 import subprocess
 import threading
+import os
 
 def run_bot():
     subprocess.run(["python3", "Debo_registration.py"])
 
 def run_web():
-    subprocess.run(["gunicorn", "health_check_server:app", "--bind", "0.0.0.0:{}".format(os.environ.get("PORT", "8000"))])
+    subprocess.run(["gunicorn", "health_check_server:app", "--bind", f"0.0.0.0:{os.environ.get('PORT', '8000')}"])
 
 if __name__ == "__main__":
-    import os
     t1 = threading.Thread(target=run_bot)
     t2 = threading.Thread(target=run_web)
 
