@@ -1,6 +1,6 @@
 import logging
 import json
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, CallbackQuery
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (Application, CommandHandler, MessageHandler, filters,
                           ConversationHandler, ContextTypes, ChatMemberHandler,
