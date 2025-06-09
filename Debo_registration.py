@@ -12,8 +12,10 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import tempfile
 import os
+import requests
+import re
 
-import re # Import the regular expression module
+APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyEbwoX6hglK7cCES1GeVKFhtwmajvVAI1WDBfh03bsQbA3DKgkfCe_jJfH-8EZ0HUc/exec"
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN environment variable not set.")
@@ -155,6 +157,109 @@ async def update_sheet_cell(context: ContextTypes.DEFAULT_TYPE, field_name: str,
         logger.error(f"Failed to update sheet for row {row_idx}, column {col_letter}: {e}")
         return False # Indicate failure
 
+
+# CODE.txt (after update_sheet_cell function)
+
+# --- Rating Functions ---
+
+async def send_rating_request(chat_id: int, professional_id_to_rate: str, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Sends a message to the user with inline buttons for rating a specific professional.
+    """
+    keyboard = [
+        [
+            InlineKeyboardButton("⭐ 1", callback_data=f"rate_{professional_id_to_rate}_1"),
+            InlineKeyboardButton("⭐ 2", callback_data=f"rate_{professional_id_to_rate}_2"),
+            InlineKeyboardButton("⭐ 3", callback_data=f"rate_{professional_id_to_rate}_3"),
+            InlineKeyboardButton("⭐ 4", callback_data=f"rate_{professional_id_to_rate}_4"),
+            InlineKeyboardButton("⭐ 5", callback_data=f"rate_{professional_id_to_rate}_5"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"Please rate the professional with ID *{professional_id_to_rate}*:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown' # Use Markdown for bold text
+    )
+
+async def handle_rating_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handles callback queries from rating buttons, parses data, and sends to Apps Script.
+    """
+    query = update.callback_query
+    callback_data = query.data  # e.g., "rate_PRO_001_4"
+    user_telegram_id = query.from_user.id
+
+    # Always answer the callback query to remove the "loading" spinner on the button
+    await query.answer()
+
+    if callback_data.startswith("rate_"):
+        try:
+            # Parse the data: "rate_PROFESSIONALID_RATING"
+            parts = callback_data.split('_')
+            professional_id = parts[1]
+            rating_value = int(parts[2])
+
+            # Make the HTTP POST request to Apps Script
+            await send_rating_to_apps_script(professional_id, rating_value, user_telegram_id, query, context)
+
+        except (ValueError, IndexError) as e:
+            await query.edit_message_text(text="Sorry, there was an error processing your rating. Please try again.")
+            logger.error(f"Error parsing callback data: {callback_data} - {e}")
+    else:
+        # This handler will only process 'rate_' patterns due to the filter below
+        pass
+
+
+async def send_rating_to_apps_script(professional_id: str, rating_value: int, user_telegram_id: int, query_object: Update.CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Sends the rating data as a JSON POST request to the Apps Script Web App.
+    """
+    payload = {
+        "professional_id": professional_id,
+        "rating": rating_value,
+        "user_telegram_id": str(user_telegram_id) # Ensure user_telegram_id is a string for JSON
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(APPS_SCRIPT_WEB_APP_URL, data=json.dumps(payload), headers=headers)
+        response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
+
+        response_json = response.json()
+        if response_json.get("success"):
+            # Edit the original message to show confirmation
+            await query_object.edit_message_text(
+                text=f"✅ Thanks! Your *{rating_value}-star* rating for professional *{professional_id}* has been recorded."
+                f"\n\n_Your feedback is valuable!_",
+                parse_mode='Markdown',
+                reply_markup=None # Remove the inline keyboard
+            )
+            logger.info(f"Successfully sent rating for {professional_id} by {user_telegram_id}: {rating_value} stars.")
+        else:
+            error_message = response_json.get("error", "Unknown error from server.")
+            await query_object.edit_message_text(
+                text=f"❌ Failed to record rating: _{error_message}_. Please try again later."
+                f"\n\n_If the problem persists, contact support._",
+                parse_mode='Markdown',
+                reply_markup=None # Remove the inline keyboard
+            )
+            logger.error(f"Error from Apps Script for rating ({professional_id}, {rating_value}): {error_message}")
+
+    except requests.exceptions.RequestException as e:
+        await query_object.edit_message_text(
+            text="❌ Failed to connect to rating service. Please try again later."
+            f"\n\n_Network error: {e}_",
+            parse_mode='Markdown',
+            reply_markup=None # Remove the inline keyboard
+        )
+        logger.error(f"HTTP request failed during rating for {professional_id}: {e}")
+
+# ... rest of your existing handler functions ...
 
 
 
@@ -381,6 +486,40 @@ async def finish_registration(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"❌ Error saving your data: /መረጃዎን መመዝገብ አልተቻለም። እባክዎ ትንሽ ቆይተው ይሞክሩ። {e}", reply_markup=main_menu_markup) # Add main menu markup
 
     return ConversationHandler.END
+
+
+# CODE.txt (near your other CommandHandler functions)
+
+async def send_manual_rating_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handler for an admin command like /send_rating <user_chat_id> <professional_id>
+    Sends a rating request to a specified user for a specified professional.
+    """
+    args = context.args
+    
+    if len(args) == 2:
+        try:
+            target_chat_id = int(args[0])
+            professional_id = args[1]
+            
+            # Call the function to send the rating request
+            await send_rating_request(target_chat_id, professional_id, context)
+            
+            await update.message.reply_text(
+                f"Rating request sent to chat ID `{target_chat_id}` for professional `{professional_id}`.",
+                parse_mode='Markdown'
+            )
+        except ValueError:
+            await update.message.reply_text("Invalid chat ID. Please provide a numeric user ID.")
+        except Exception as e:
+            await update.message.reply_text(f"An error occurred: {e}")
+            logger.error(f"Error in send_manual_rating_command: {e}")
+    else:
+        await update.message.reply_text("Usage: `/send_rating <user_chat_id> <professional_id>`", parse_mode='Markdown')
+
+# ... rest of your existing functions ...
+
+
 
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -750,10 +889,11 @@ def main():
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(CommandHandler("editprofile", editprofile))
     app.add_handler(CommandHandler("profile", profile))
-
+    app.add_handler(CallbackQueryHandler(handle_rating_callback, pattern='^rate_'))
     # Add the error handler to catch exceptions during update processing
     app.add_error_handler(error_handler) # <--- This line adds the new feature
-
+    YOUR_ADMIN_TELEGRAM_ID =401674551 # <--- REPLACE WITH YOUR TELEGRAM USER ID
+    app.add_handler(CommandHandler("send_rating", send_manual_rating_command, filters=filters.User(YOUR_ADMIN_TELEGRAM_ID))) # <--- ADD THIS LINE
     app.run_polling()
 
 if __name__ == '__main__':
