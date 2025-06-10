@@ -194,8 +194,8 @@ async def send_initial_feedback_message(chat_id: int, professional_ids: list[str
     Stores the professional_ids in user_data for later reference.
     """
     # Store the list of professionals sent for this user, so we can refer back to them later.
-    context.application.user_data[chat_id] = {'initial_professional_ids': professional_ids}
-
+    user_data_for_target = await context.application.get_user_data(chat_id)
+    user_data_for_target['initial_professional_ids'] = professional_ids
     keyboard = []
 
     # Add the static choices
@@ -262,7 +262,8 @@ async def send_follow_up_rating_prompt(chat_id: int, context: ContextTypes.DEFAU
     # Check if there are still professionals in the list that haven't been explicitly rated
     # This logic will be fully robust once we implement storing the list and tracking rated ones
     # For now, it just assumes the option to rate another is always available
-    professional_ids_for_user = context.application.user_data.get(chat_id, {}).get('initial_professional_ids', [])
+    user_data_for_current = await context.application.get_user_data(chat_id)
+    professional_ids_for_user = user_data_for_current.get('initial_professional_ids', [])
   
     keyboard = [
         [
@@ -435,7 +436,8 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
     elif callback_data == "followup_rate_another":
         # Retrieve the original list of professional IDs sent to this user
         # This assumes the list is stored in context.user_data[user_chat_id]['initial_professional_ids']
-        professional_ids_for_user = context.application.user_data.get(user_chat_id, {}).get('initial_professional_ids', [])
+        user_data_for_current = await context.application.get_user_data(user_chat_id)
+        professional_ids_for_user = user_data_for_current.get('initial_professional_ids', [])
         
         if professional_ids_for_user:
             # Re-send the initial feedback message to allow choosing another professional
