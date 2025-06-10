@@ -160,6 +160,8 @@ async def update_sheet_cell(context: ContextTypes.DEFAULT_TYPE, field_name: str,
 
 # CODE.txt (after update_sheet_cell function)
 
+
+
 # --- Rating Functions ---
 
 async def send_rating_request(chat_id: int, professional_id_to_rate: str, context: ContextTypes.DEFAULT_TYPE):
@@ -213,6 +215,34 @@ async def handle_rating_callback(update: Update, context: ContextTypes.DEFAULT_T
         pass
 
 
+# CODE.txt (Add this new function)
+
+async def send_follow_up_rating_prompt(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Sends a follow-up message asking the user if they want to rate another professional
+    or end the rating process.
+    """
+    # Check if there are still professionals in the list that haven't been explicitly rated
+    # This logic will be fully robust once we implement storing the list and tracking rated ones
+    # For now, it just assumes the option to rate another is always available
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("Rate another professional", callback_data="followup_rate_another"),
+            InlineKeyboardButton("End rating process", callback_data="followup_end_rating")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="Successfully sent the rating! Would you like to rate another professional or finish?",
+        reply_markup=reply_markup
+    )
+
+
+
+
 async def send_rating_to_apps_script(professional_id: str, rating_value: int, user_telegram_id: int, query_object: CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
     """
     Sends the rating data as a JSON POST request to the Apps Script Web App.
@@ -232,21 +262,26 @@ async def send_rating_to_apps_script(professional_id: str, rating_value: int, us
 
         response_json = response.json()
         if response_json.get("success"):
-            # Edit the original message to show confirmation
+            # Edit the original message to show confirmation of THIS rating
             await query_object.edit_message_text(
-                text=f"✅ Thanks! Your *{rating_value}-star* rating for professional *{professional_id}* has been recorded."
-                f"\n\n_Your feedback is valuable!_",
+                text=f"✅ Thanks! Your *{rating_value}-star* rating for professional *{professional_id}* has been recorded.",
                 parse_mode='Markdown',
-                reply_markup=None # Remove the inline keyboard
+                reply_markup=None # Remove the inline keyboard from the rated professional
             )
             logger.info(f"Successfully sent rating for {professional_id} by {user_telegram_id}: {rating_value} stars.")
+
+            # --- NEW: Send the follow-up prompt ---
+            # The list of professionals will be stored in context.user_data in a later step
+            # For now, assume context.user_data['professional_ids_sent_for_rating'] exists
+            await send_follow_up_rating_prompt(user_telegram_id, context) # <--- ADD THIS LINE
+
         else:
             error_message = response_json.get("error", "Unknown error from server.")
             await query_object.edit_message_text(
                 text=f"❌ Failed to record rating: _{error_message}_. Please try again later."
                 f"\n\n_If the problem persists, contact support._",
                 parse_mode='Markdown',
-                reply_markup=None # Remove the inline keyboard
+                reply_markup=None
             )
             logger.error(f"Error from Apps Script for rating ({professional_id}, {rating_value}): {error_message}")
 
@@ -255,11 +290,45 @@ async def send_rating_to_apps_script(professional_id: str, rating_value: int, us
             text="❌ Failed to connect to rating service. Please try again later."
             f"\n\n_Network error: {e}_",
             parse_mode='Markdown',
-            reply_markup=None # Remove the inline keyboard
+            reply_markup=None
         )
         logger.error(f"HTTP request failed during rating for {professional_id}: {e}")
 
-# ... rest of your existing handler functions ...
+
+
+def send_manual_rating_command(update, context):
+    """
+    Handler for an admin command like /request_rating <user_chat_id> <professional_id>
+    Only intended for use by the bot administrator.
+    """
+    args = context.args # Get arguments passed after the command
+
+    if len(args) == 2:
+        target_chat_id = int(args[0]) # The first argument is the user's chat ID
+        professional_id = args[1]    # The second argument is the professional's ID
+
+        # Call the function we defined earlier to send the rating request
+        send_rating_request(target_chat_id, professional_id) # This sends the clickable message
+
+        update.message.reply_text(f"Rating request sent to {target_chat_id} for professional {professional_id}.")
+    else:
+        update.message.reply_text("Usage: /request_rating <user_chat_id> <professional_id>")
+
+
+# In your main() function, register this handler
+def main():
+    updater = Updater("YOUR_BOT_TOKEN", use_context=True)
+    dispatcher = updater.dispatcher
+
+    # ... (other handlers) ...
+
+    # Add the new command handler for manual rating requests
+    # Make sure only YOUR chat_id can use this command if you want to restrict it
+    dispatcher.add_handler(CommandHandler("request_rating", send_manual_rating_command))
+
+    updater.start_polling()
+    updater.idle()
+
 
 
 
