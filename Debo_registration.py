@@ -213,7 +213,7 @@ async def handle_rating_callback(update: Update, context: ContextTypes.DEFAULT_T
         pass
 
 
-async def send_rating_to_apps_script(professional_id: str, rating_value: int, user_telegram_id: int, query_object: Update.CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
+async def send_rating_to_apps_script(professional_id: str, rating_value: int, user_telegram_id: int, query_object: CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
     """
     Sends the rating data as a JSON POST request to the Apps Script Web App.
     """
