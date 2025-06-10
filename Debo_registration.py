@@ -186,6 +186,43 @@ async def send_rating_request(chat_id: int, professional_id_to_rate: str, contex
         parse_mode='Markdown' # Use Markdown for bold text
     )
 
+# CODE.txt (Add this new function)
+
+async def send_initial_feedback_message(chat_id: int, professional_ids: list[str], context: ContextTypes.DEFAULT_TYPE):
+    """
+    Sends the initial feedback message to the user with choices including individual professionals.
+    Stores the professional_ids in user_data for later reference.
+    """
+    # Store the list of professionals sent for this user, so we can refer back to them later.
+    context.user_data[chat_id] = {'initial_professional_ids': professional_ids}
+
+    keyboard = []
+
+    # Add the static choices
+    keyboard.append([InlineKeyboardButton("I will not contact them", callback_data="feedback_no_contact")])
+    keyboard.append([InlineKeyboardButton("I will contact them soon", callback_data="feedback_will_contact")])
+    keyboard.append([InlineKeyboardButton("Please don't send me this message again", callback_data="feedback_opt_out")])
+
+    # Add buttons for each professional
+    keyboard.append([InlineKeyboardButton("--- Choose Professional(s) You Contacted ---", callback_data="ignore_me")]) # Separator
+
+    for pro_id in professional_ids:
+        # Assuming you want to display the ID on the button. You could fetch names if needed.
+        keyboard.append([InlineKeyboardButton(f"Contacted: {pro_id}", callback_data=f"feedback_select_pro_{pro_id}")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="Hello! Regarding the professional(s) we shared, please let us know your status or select whom you contacted:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+    logger.info(f"Initial feedback message sent to {chat_id} for professionals: {professional_ids}")
+
+# ... rest of your functions ...
+
+
 async def handle_rating_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handles callback queries from rating buttons, parses data, and sends to Apps Script.
@@ -295,24 +332,142 @@ async def send_rating_to_apps_script(professional_id: str, rating_value: int, us
         logger.error(f"HTTP request failed during rating for {professional_id}: {e}")
 
 
+# CODE.txt (Replace your existing send_manual_rating_command function)
 
-def send_manual_rating_command(update, context):
+async def request_feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Handler for an admin command like /request_rating <user_chat_id> <professional_id>
-    Only intended for use by the bot administrator.
+    Admin command to initiate the enhanced feedback request for a user.
+    Usage: /request_feedback <user_chat_id> <professional_id_1> <professional_id_2> ...
     """
-    args = context.args # Get arguments passed after the command
+    args = context.args
+    
+    if len(args) >= 2: # At least chat_id and one professional ID
+        try:
+            target_chat_id = int(args[0])
+            professional_ids_to_send = args[1:] # All arguments after the first one are professional IDs
+            
+            if not professional_ids_to_send:
+                await update.message.reply_text("Please provide at least one professional ID.")
+                return
 
-    if len(args) == 2:
-        target_chat_id = int(args[0]) # The first argument is the user's chat ID
-        professional_id = args[1]    # The second argument is the professional's ID
+            # Call the new function to send the initial feedback message
+            await send_initial_feedback_message(target_chat_id, professional_ids_to_send, context)
+            
+            await update.message.reply_text(
+                f"Initial feedback request sent to chat ID `{target_chat_id}` for professionals: `{', '.join(professional_ids_to_send)}`.",
+                parse_mode='Markdown'
+            )
+            logger.info(f"Admin triggered initial feedback for {target_chat_id} with {professional_ids_to_send}")
 
-        # Call the function we defined earlier to send the rating request
-        send_rating_request(target_chat_id, professional_id) # This sends the clickable message
-
-        update.message.reply_text(f"Rating request sent to {target_chat_id} for professional {professional_id}.")
+        except ValueError:
+            await update.message.reply_text("Invalid chat ID. Please provide a numeric user ID.", parse_mode='Markdown')
+        except Exception as e:
+            await update.message.reply_text(f"An error occurred: `{e}`", parse_mode='Markdown')
+            logger.error(f"Error in request_feedback_command: {e}")
     else:
-        update.message.reply_text("Usage: /request_rating <user_chat_id> <professional_id>")
+        await update.message.reply_text(
+            "Usage: `/request_feedback <user_chat_id> <professional_id_1> [professional_id_2] ...`",
+            parse_mode='Markdown'
+        )
+
+# ... rest of your functions ...
+
+# CODE.txt (Add this new function)
+
+async def handle_initial_feedback_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handles callback queries from the initial feedback message and follow-up prompts.
+    """
+    query = update.callback_query
+    callback_data = query.data
+    user_chat_id = query.from_user.id
+
+    await query.answer() # Always answer the callback query to remove the "loading" spinner
+
+    # --- Handle initial feedback choices ---
+    if callback_data == "feedback_no_contact":
+        await query.edit_message_text(
+            text="Understood! We won't send rating requests for these professionals. Thank you for the update.",
+            reply_markup=None # Remove buttons
+        )
+        # You can add logic here to record this in your sheet/database
+        logger.info(f"User {user_chat_id} chose 'no contact'.")
+
+    elif callback_data == "feedback_will_contact":
+        await query.edit_message_text(
+            text="Okay, please let us know if you contact them! We won't send immediate rating requests.",
+            reply_markup=None # Remove buttons
+        )
+        # You can add logic here to record this in your sheet/database
+        logger.info(f"User {user_chat_id} chose 'will contact soon'.")
+
+    elif callback_data == "feedback_opt_out":
+        await query.edit_message_text(
+            text="Got it. We won't send you these types of messages again. You can always reactivate feedback requests by contacting support.",
+            reply_markup=None # Remove buttons
+        )
+        # IMPORTANT: Implement logic here to store this opt-out preference in your sheet/database
+        # and ensure you don't send future feedback requests to this user.
+        logger.info(f"User {user_chat_id} opted out of feedback requests.")
+        
+    elif callback_data.startswith("feedback_select_pro_"):
+        try:
+            professional_id = callback_data.split('_')[2]
+            
+            # Edit the original message to indicate selection, but keep it so other buttons can be clicked
+            # Or, you can send a new message with just the rating prompt.
+            await query.edit_message_text(
+                text=f"You selected professional: *{professional_id}*."
+                     f"\nNow, please use the stars in the *next message* to rate them.",
+                parse_mode='Markdown'
+            )
+            
+            # Call the existing function to send the 1-5 star rating prompt for this professional
+            await send_rating_request(user_chat_id, professional_id, context)
+            logger.info(f"User {user_chat_id} selected {professional_id} for rating.")
+
+        except IndexError:
+            await query.edit_message_text(text="Error processing professional selection.", reply_markup=None)
+            logger.error(f"Error parsing feedback_select_pro_ callback data: {callback_data}")
+            
+    # --- Handle follow-up choices after a rating ---
+    elif callback_data == "followup_rate_another":
+        # Retrieve the original list of professional IDs sent to this user
+        # This assumes the list is stored in context.user_data[user_chat_id]['initial_professional_ids']
+        professional_ids_for_user = context.user_data.get(user_chat_id, {}).get('initial_professional_ids', [])
+        
+        if professional_ids_for_user:
+            # Re-send the initial feedback message to allow choosing another professional
+            await send_initial_feedback_message(user_chat_id, professional_ids_for_user, context)
+            # Remove the follow-up prompt buttons
+            await query.edit_message_text(
+                text="Please choose another professional to rate from the message above, or click 'End rating process'.",
+                reply_markup=None
+            )
+            logger.info(f"User {user_chat_id} chose to rate another professional. Resending initial choices.")
+        else:
+            await query.edit_message_text(
+                text="No other professionals found to rate, or the list was not saved. Please contact support if you believe this is an error.",
+                reply_markup=None
+            )
+            logger.warning(f"User {user_chat_id} chose to rate another, but no 'initial_professional_ids' found in user_data.")
+
+    elif callback_data == "followup_end_rating":
+        await query.edit_message_text(
+            text="Thank you for your feedback! The rating process has ended.",
+            reply_markup=None # Remove buttons
+        )
+        # You might also want to clear context.user_data[user_chat_id] here if no longer needed
+        if user_chat_id in context.user_data:
+            del context.user_data[user_chat_id]
+        logger.info(f"User {user_chat_id} ended the rating process.")
+
+    # Prevent the general handle_rating_callback from processing these specific callbacks
+    return
+
+# ... rest of your functions ...
+
+
 
 
 # In your main() function, register this handler
@@ -959,10 +1114,10 @@ def main():
     app.add_handler(CommandHandler("editprofile", editprofile))
     app.add_handler(CommandHandler("profile", profile))
     app.add_handler(CallbackQueryHandler(handle_rating_callback, pattern='^rate_'))
-    # Add the error handler to catch exceptions during update processing
+    app.add_handler(CallbackQueryHandler(handle_initial_feedback_callback, pattern='^feedback_|^followup_')) # <--- ADD THIS LINE
     app.add_error_handler(error_handler) # <--- This line adds the new feature
     YOUR_ADMIN_TELEGRAM_ID =401674551 # <--- REPLACE WITH YOUR TELEGRAM USER ID
-    app.add_handler(CommandHandler("send_rating", send_manual_rating_command, filters=filters.User(YOUR_ADMIN_TELEGRAM_ID))) # <--- ADD THIS LINE
+    app.add_handler(CommandHandler("request_feedback", request_feedback_command, filters=filters.User(YOUR_ADMIN_TELEGRAM_ID))) # <--- ADD THIS LINE
     app.run_polling()
 
 if __name__ == '__main__':
