@@ -309,7 +309,10 @@ async def send_rating_to_apps_script(professional_id: str, rating_value: int, us
                 reply_markup=None # Remove the inline keyboard from the rated professional
             )
             logger.info(f"Successfully sent rating for {professional_id} by {user_telegram_id}: {rating_value} stars.")
-
+            user_data_for_current = await context.application.get_user_data(user_telegram_id)
+            if 'rated_professional_ids' not in user_data_for_current:
+                user_data_for_current['rated_professional_ids'] = set() # Use a set for efficient lookups
+            user_data_for_current['rated_professional_ids'].add(professional_id)
             # --- NEW: Send the follow-up prompt ---
             # The list of professionals will be stored in context.user_data in a later step
             # For now, assume context.user_data['professional_ids_sent_for_rating'] exists
@@ -387,6 +390,7 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
 
     await query.answer() # Always answer the callback query to remove the "loading" spinner
 
+    user_data_for_current = await context.application.get_user_data(user_chat_id)
     # --- Handle initial feedback choices ---
     if callback_data == "feedback_no_contact":
         await query.edit_message_text(
@@ -395,12 +399,17 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
         )
         # You can add logic here to record this in your sheet/database
         logger.info(f"User {user_chat_id} chose 'no contact'.")
-
+        if user_chat_id in context.application.user_data: # Use this check if you need to ensure the key exists before deleting
+            del context.application.user_data[user_chat_id]
+        logger.info(f"User {user_chat_id} chose 'no contact'. Session data cleared.")
     elif callback_data == "feedback_will_contact":
         await query.edit_message_text(
             text="Okay, please let us know if you contact them! We won't send immediate rating requests.",
             reply_markup=None # Remove buttons
         )
+        # Clear session data as process is ended
+        if user_chat_id in context.application.user_data:
+            del context.application.user_data[user_chat_id]
         # You can add logic here to record this in your sheet/database
         logger.info(f"User {user_chat_id} chose 'will contact soon'.")
 
@@ -411,6 +420,8 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
         )
         # IMPORTANT: Implement logic here to store this opt-out preference in your sheet/database
         # and ensure you don't send future feedback requests to this user.
+        if user_chat_id in context.application.user_data:
+            del context.application.user_data[user_chat_id]
         logger.info(f"User {user_chat_id} opted out of feedback requests.")
         
     elif callback_data.startswith("feedback_select_pro_"):
@@ -436,25 +447,35 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
     # --- Handle follow-up choices after a rating ---
     elif callback_data == "followup_rate_another":
         # Retrieve the original list of professional IDs sent to this user
-        # This assumes the list is stored in context.user_data[user_chat_id]['initial_professional_ids']
-        professional_ids_for_user = user_specific_data.get(user_chat_id, {}).get('initial_professional_ids', [])
+        initial_professional_ids = user_data_for_current.get('initial_professional_ids', [])
+        # Retrieve the list of professionals already rated in this session
+        rated_professional_ids = user_data_for_current.get('rated_professional_ids', set())
+
+        # Calculate the unrated professionals
+        unrated_professional_ids = [
+            pro_id for pro_id in initial_professional_ids if pro_id not in rated_professional_ids
+        ]
         
-        if professional_ids_for_user:
-            # Re-send the initial feedback message to allow choosing another professional
-            await send_initial_feedback_message(user_chat_id, professional_ids_for_user, context)
+        if unrated_professional_ids:
+            # Re-send the initial feedback message with only the unrated professionals
+            await send_initial_feedback_message(user_chat_id, unrated_professional_ids, context)
             # Remove the follow-up prompt buttons
             await query.edit_message_text(
                 text="Please choose another professional to rate from the message above, or click 'End rating process'.",
                 reply_markup=None
             )
-            logger.info(f"User {user_chat_id} chose to rate another professional. Resending initial choices.")
+            logger.info(f"User {user_chat_id} chose to rate another professional. Resending initial choices (filtered).")
         else:
             await query.edit_message_text(
-                text="No other professionals found to rate, or the list was not saved. Please contact support if you believe this is an error.",
+                text="You have rated all professionals from this list! Thank you for your feedback. The rating process has ended.",
                 reply_markup=None
             )
-            logger.warning(f"User {user_chat_id} chose to rate another, but no 'initial_professional_ids' found in user_data.")
+            # Clear session data as all professionals have been rated
+            if user_chat_id in context.application.user_data:
+                del context.application.user_data[user_chat_id]
+            logger.info(f"User {user_chat_id} rated all professionals. Session data cleared.")
 
+  
     elif callback_data == "followup_end_rating":
         await query.edit_message_text(
             text="Thank you for your feedback! The rating process has ended.",
