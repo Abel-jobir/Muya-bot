@@ -14,6 +14,9 @@ import tempfile
 import os
 import requests
 import re
+user_specific_data = {}
+
+
 
 APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyEbwoX6hglK7cCES1GeVKFhtwmajvVAI1WDBfh03bsQbA3DKgkfCe_jJfH-8EZ0HUc/exec"
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -194,8 +197,7 @@ async def send_initial_feedback_message(chat_id: int, professional_ids: list[str
     Stores the professional_ids in user_data for later reference.
     """
     # Store the list of professionals sent for this user, so we can refer back to them later.
-    user_data_for_target = await context.application.get_user_data(chat_id)
-    user_data_for_target['initial_professional_ids'] = professional_ids
+    user_specific_data[chat_id] = {'initial_professional_ids': professional_ids}
     keyboard = []
 
     # Add the static choices
@@ -262,8 +264,7 @@ async def send_follow_up_rating_prompt(chat_id: int, context: ContextTypes.DEFAU
     # Check if there are still professionals in the list that haven't been explicitly rated
     # This logic will be fully robust once we implement storing the list and tracking rated ones
     # For now, it just assumes the option to rate another is always available
-    user_data_for_current = await context.application.get_user_data(chat_id)
-    professional_ids_for_user = user_data_for_current.get('initial_professional_ids', [])
+    professional_ids_for_user = user_specific_data.get(chat_id, {}).get('initial_professional_ids', [])
   
     keyboard = [
         [
@@ -436,8 +437,7 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
     elif callback_data == "followup_rate_another":
         # Retrieve the original list of professional IDs sent to this user
         # This assumes the list is stored in context.user_data[user_chat_id]['initial_professional_ids']
-        user_data_for_current = await context.application.get_user_data(user_chat_id)
-        professional_ids_for_user = user_data_for_current.get('initial_professional_ids', [])
+        professional_ids_for_user = user_specific_data.get(user_chat_id, {}).get('initial_professional_ids', [])
         
         if professional_ids_for_user:
             # Re-send the initial feedback message to allow choosing another professional
@@ -461,8 +461,8 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
             reply_markup=None # Remove buttons
         )
         # You might also want to clear context.user_data[user_chat_id] here if no longer needed
-        if user_chat_id in context.user_data:
-            del context.user_data[user_chat_id]
+        if user_chat_id in user_specific_data:
+            del user_specific_data[user_chat_id] # <--- ADD/CHANGE THIS LINE
         logger.info(f"User {user_chat_id} ended the rating process.")
 
     # Prevent the general handle_rating_callback from processing these specific callbacks
