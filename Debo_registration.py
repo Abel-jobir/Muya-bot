@@ -15,6 +15,8 @@ import os
 import requests
 import re
 import asyncio
+
+logger.info(f"python-telegram-bot version: {telegram.__version__}")
 user_specific_data = {}
 PROFESSIONAL_ID_COL_MAIN_SHEET = 0 # Assuming 'Professional_ID' is in column A
 PROFESSIONAL_NAME_COL_MAIN_SHEET = 2 # Assuming 'Full_Name' is in column B
