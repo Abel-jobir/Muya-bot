@@ -14,8 +14,10 @@ import tempfile
 import os
 import requests
 import re
+import asyncio
 user_specific_data = {}
-
+PROFESSIONAL_ID_COL_MAIN_SHEET = 0 # Assuming 'Professional_ID' is in column A
+PROFESSIONAL_NAME_COL_MAIN_SHEET = 2 # Assuming 'Full_Name' is in column B
 
 
 APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyEbwoX6hglK7cCES1GeVKFhtwmajvVAI1WDBfh03bsQbA3DKgkfCe_jJfH-8EZ0HUc/exec"
@@ -163,6 +165,70 @@ async def update_sheet_cell(context: ContextTypes.DEFAULT_TYPE, field_name: str,
 
 # CODE.txt (after update_sheet_cell function)
 
+# CODE.txt (Add this new function below your existing functions)
+
+# Global lookup for professional names
+professional_names_lookup = {}
+
+async def load_professional_names_from_sheet(context: ContextTypes.DEFAULT_TYPE):
+    """
+    Loads all professional IDs and their full names from the main sheet
+    into a global lookup dictionary.
+    """
+    global professional_names_lookup
+    logger.info("Loading professional names from Google Sheet...")
+    try:
+        # Assuming `worksheet` is already available globally or can be accessed through context.bot_data/context.application.bot_data
+        # If worksheet is not global, you might need to re-authorize gspread or pass it.
+        # For simplicity, let's assume `gc` (gspread client) is available, which it should be from main().
+        # You'll need to open the specific worksheet.
+        
+        # Ensure `gc` and `SPREADSHEET_ID_DEBO` are accessible.
+        # This part requires access to the `gc` object and `SPREADSHEET_ID_DEBO` global variable or passed context.
+        # Let's assume `gc` and `worksheet` from `main()` are globally accessible after setup.
+        # Or, if `worksheet` is stored in `app.bot_data`, retrieve it:
+        worksheet = context.application.bot_data.get("main_worksheet")
+        if not worksheet:
+            # Re-initialize gspread client if not found (less efficient, but robust)
+            scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+            creds_json_str = os.environ.get("deboregist") # Ensure this env var is correct
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_creds_file:
+                temp_creds_file.write(creds_json_str)
+            creds = ServiceAccountCredentials.from_json_keyfile_name(temp_creds_file.name, scope)
+            gc = gspread.authorize(creds)
+            spreadsheet_id = os.environ.get("SPREADSHEET_ID_DEBO") # Ensure this env var is correct
+            worksheet = gc.open_by_key(spreadsheet_id).FakeContext # Assuming 'professionals' is your main sheet name
+            context.application.bot_data["main_worksheet"] = worksheet # Store for future use
+
+        all_data = worksheet.get_all_values()
+        
+        if not all_data:
+            logger.warning("No data found in the professionals sheet.")
+            return
+
+        # Skip header row if exists
+        data_rows = all_data[1:] if len(all_data) > 1 else []
+
+        lookup = {}
+        for row in data_rows:
+            if len(row) > max(PROFESSIONAL_ID_COL_MAIN_SHEET, PROFESSIONAL_NAME_COL_MAIN_SHEET):
+                pro_id = row[PROFESSIONAL_ID_COL_MAIN_SHEET]
+                pro_name = row[PROFESSIONAL_NAME_COL_MAIN_SHEET]
+                if pro_id: # Only add if professional ID is not empty
+                    lookup[pro_id] = pro_name
+        
+        professional_names_lookup = lookup
+        logger.info(f"Loaded {len(professional_names_lookup)} professional names.")
+
+    except Exception as e:
+        logger.error(f"Error loading professional names from sheet: {e}")
+
+async def post_init_tasks(application: Application):
+    """Tasks to run after the Application is initialized, before polling starts."""
+    # This context is guaranteed to have `application` properly set.
+    # We create a dummy context to pass to our loading function.
+    dummy_context = application.create_context(update=None, chat_id=None, user_id=None)
+    await load_professional_names_from_sheet(dummy_context)
 
 
 # --- Rating Functions ---
@@ -210,8 +276,13 @@ async def send_initial_feedback_message(chat_id: int, professional_ids: list[str
 
     for pro_id in professional_ids:
         # Assuming you want to display the ID on the button. You could fetch names if needed.
-        keyboard.append([InlineKeyboardButton(f"Contacted: {pro_id}", callback_data=f"feedback_select_pro_{pro_id}")])
-
+        pro_name = professional_names_lookup.get(pro_id, pro_id) # <--- CHANGE THIS LINE
+        keyboard.append([InlineKeyboardButton(pro_name, callback_data=f"feedback_select_pro_{pro_id}")])
+    keyboard.append([
+        InlineKeyboardButton("I have not contacted any of them", callback_data="feedback_no_contact"),
+        InlineKeyboardButton("I will contact them soon", callback_data="feedback_will_contact")
+    ])
+    keyboard.append([InlineKeyboardButton("Opt-out of these messages", callback_data="feedback_opt_out")])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await context.bot.send_message(
@@ -301,8 +372,9 @@ async def send_rating_to_apps_script(professional_id: str, rating_value: int, us
 
         response_json = response.json()
         if response_json.get("success"):
+            pro_name = professional_names_lookup.get(professional_id, professional_id) # <--- CHANGE THIS LINE
             await query_object.edit_message_text(
-                text=f"✅ Thanks! Your *{rating_value}-star* rating for professional *{professional_id}* has been recorded.",
+                text=f"✅ Thanks! Your *{rating_value}-star* rating for professional *{pro_name}* has been recorded.", # <--- CHANGE THIS LINE (use pro_name)
                 parse_mode='Markdown',
                 reply_markup=None
             )
@@ -431,9 +503,9 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
     elif callback_data.startswith("feedback_select_pro_"):
         try:
             professional_id = callback_data.split('_')[2]
-            
+            pro_name = professional_names_lookup.get(professional_id, professional_id)
             await query.edit_message_text(
-                text=f"You selected professional: *{professional_id}*."
+                text=f"You selected professional: *{pro_name}*."
                      f"\nNow, please use the stars in the *next message* to rate them.",
                 parse_mode='Markdown'
             )
@@ -1070,11 +1142,61 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
+    
     app = Application.builder().token(TOKEN).build()
+
+    # --- Google Sheets Setup ---
+    # This block needs to be here to initialize gspread and open the sheet
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds_json_str = os.environ.get("deboregist")
+    if not creds_json_str:
+        raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
+    
+    # Use a temporary file to save credentials
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_creds_file:
+        temp_creds_file.write(creds_json_str)
+    
+    creds = ServiceAccountCredentials.from_json_keyfile_name(temp_creds_file.name, scope)
+    gc = gspread.authorize(creds)
+    
+    spreadsheet_id = os.environ.get("SPREADSHEET_ID_DEBO")
+    if not spreadsheet_id:
+        raise ValueError("SPREADSHEET_ID_DEBO environment variable not set.")
+    
+    try:
+        # Assuming your main professionals sheet is named "professionals"
+        # IMPORTANT: Verify 'professionals' is the exact name of your sheet holding professional data
+        main_worksheet = gc.open_by_key(spreadsheet_id).worksheet("Professionals") 
+        app.bot_data["main_worksheet"] = main_worksheet # Store worksheet in bot_data for easy access
+        logger.info("Google Sheet 'professionals' opened successfully.")
+    except Exception as e:
+        logger.error(f"Failed to open Google Sheet 'professionals': {e}")
+        # Depending on criticality, you might want to exit or handle gracefully
+        # If sheet cannot be opened, professional name lookup will fail.
+
+    # Remove the temporary credential file after use
+    os.remove(temp_creds_file.name)
+    # --- End Google Sheets Setup ---
+
+    # Register the startup task to load names
+    app.add_startup_tasks([post_init_tasks])
+    
+
+    
+
+
+  
     app.add_handler(ChatMemberHandler(greet_new_user, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("profile", profile))
 
+    Replace YOUR_ADMIN_TELEGRAM_ID with your actual admin ID if you want to restrict this command
+    app.add_handler(CommandHandler("request_feedback", request_feedback_command, filters=filters.User(os.environ.get("401674551"))))
+    app.add_handler(CallbackQueryHandler(handle_initial_feedback_callback, pattern='^feedback_|^followup_'))
+    app.add_handler(CallbackQueryHandler(handle_rating_callback, pattern='^rate_'))
+    app.add_error_handler(error_handler)
+    
+    app.add_handler(CommandHandler("profile", profile))
+    asyncio.run(load_professional_names_from_sheet(app.job_queue))
     register_conv = ConversationHandler(
         entry_points=[CommandHandler("register", register)],
         states={
@@ -1123,10 +1245,19 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
-    app.add_handler(register_conv)
-    app.add_handler(edit_conv)
-    app.add_handler(delete_conv)
-    app.add_handler(comment_conv)
+
+    class FakeContext: # A minimalist context for startup tasks
+        def __init__(self, app_instance):
+            self.application = app_instance
+            self.bot_data = app_instance.bot_data # Ensure bot_data is accessible
+
+    fake_context = FakeContext(app)
+    async def startup_task(application: Application):
+        await load_professional_names_from_sheet(application.create_context(update=None, chat_id=None, user_id=None)) # Use create_context for proper context object
+        logger.info("Professional names loaded successfully on startup.")
+
+    app.add_startup_tasks([startup_task]) # This is the cleanest way in PTB v20+
+    app.add_handler(CommandHandler("reload_names", lambda update, context: load_professional_names_from_sheet(context)))
     app.add_handler(register_conv)
     app.add_handler(edit_conv)
     app.add_handler(delete_conv)
@@ -1138,7 +1269,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_initial_feedback_callback, pattern='^feedback_|^followup_')) # <--- ADD THIS LINE
     app.add_error_handler(error_handler) # <--- This line adds the new feature
     YOUR_ADMIN_TELEGRAM_ID =401674551 # <--- REPLACE WITH YOUR TELEGRAM USER ID
-    app.add_handler(CommandHandler("request_feedback", request_feedback_command, filters=filters.User(YOUR_ADMIN_TELEGRAM_ID))) # <--- ADD THIS LINE
+    app.add_handler(CommandHandler("request_feedback", request_feedback_command, filters=filters.User(401674551))) # <--- ADD THIS LINE
     app.run_polling()
 
 if __name__ == '__main__':
