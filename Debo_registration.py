@@ -15,7 +15,7 @@ import os
 import requests
 import re
 import asyncio
-
+import telegram
 
 user_specific_data = {}
 PROFESSIONAL_ID_COL_MAIN_SHEET = 0 # Assuming 'Professional_ID' is in column A
