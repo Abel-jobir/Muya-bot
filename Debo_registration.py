@@ -231,6 +231,7 @@ async def post_init_tasks(application: Application):
     # We create a dummy context to pass to our loading function.
     dummy_context = application.create_context(update=None, chat_id=None, user_id=None)
     await load_professional_names_from_sheet(dummy_context)
+    logger.info("Professional names loaded successfully on startup.")
 
 
 # --- Rating Functions ---
@@ -1181,7 +1182,7 @@ def main():
     # --- End Google Sheets Setup ---
 
     # Register the startup task to load names
-    app.post_init = post_init_tasks
+    app.post_init = startup_task
     
 
     
