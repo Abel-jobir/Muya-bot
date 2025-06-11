@@ -1144,6 +1144,12 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Cancelled.", reply_markup=main_menu_markup)
     return ConversationHandler.END
 
+async def startup_task(application: Application):
+    """Tasks to run after the Application is initialized, before polling starts."""
+    dummy_context = application.create_context(update=None, chat_id=None, user_id=None)
+    await load_professional_names_from_sheet(dummy_context)
+    logger.info("Professional names loaded successfully on startup.")
+
 def main():
     
     app = Application.builder().token(TOKEN).build()
@@ -1253,9 +1259,7 @@ def main():
             self.bot_data = app_instance.bot_data # Ensure bot_data is accessible
 
     fake_context = FakeContext(app)
-    async def startup_task(application: Application):
-        await load_professional_names_from_sheet(application.create_context(update=None, chat_id=None, user_id=None)) # Use create_context for proper context object
-        logger.info("Professional names loaded successfully on startup.")
+    
 
     app.post_init = post_init_tasks # This is the cleanest way in PTB v20+
     app.add_handler(CommandHandler("reload_names", lambda update, context: load_professional_names_from_sheet(context)))
