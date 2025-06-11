@@ -197,13 +197,13 @@ async def load_professional_names_from_sheet(context: ContextTypes.DEFAULT_TYPE)
             creds = ServiceAccountCredentials.from_json_keyfile_name(temp_creds_file.name, scope)
             gc = gspread.authorize(creds)
             spreadsheet_id = os.environ.get("SPREADSHEET_ID_DEBO") # Ensure this env var is correct
-            worksheet = gc.open_by_key(spreadsheet_id).FakeContext # Assuming 'professionals' is your main sheet name
+            worksheet = gc.open_by_key(spreadsheet_id).FakeContext # Assuming 'Professionals' is your main sheet name
             context.application.bot_data["main_worksheet"] = worksheet # Store for future use
 
         all_data = worksheet.get_all_values()
         
         if not all_data:
-            logger.warning("No data found in the professionals sheet.")
+            logger.warning("No data found in the Professionals sheet.")
             return
 
         # Skip header row if exists
@@ -259,10 +259,10 @@ async def send_rating_request(chat_id: int, professional_id_to_rate: str, contex
 
 async def send_initial_feedback_message(chat_id: int, professional_ids: list[str], context: ContextTypes.DEFAULT_TYPE):
     """
-    Sends the initial feedback message to the user with choices including individual professionals.
+    Sends the initial feedback message to the user with choices including individual Professionals.
     Stores the professional_ids in user_data for later reference.
     """
-    # Store the list of professionals sent for this user, so we can refer back to them later.
+    # Store the list of Professionals sent for this user, so we can refer back to them later.
     user_specific_data[chat_id] = {'initial_professional_ids': professional_ids, 'rated_professional_ids': set()}
     keyboard = []
 
@@ -291,7 +291,7 @@ async def send_initial_feedback_message(chat_id: int, professional_ids: list[str
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
-    logger.info(f"Initial feedback message sent to {chat_id} for professionals: {professional_ids}")
+    logger.info(f"Initial feedback message sent to {chat_id} for Professionals: {professional_ids}")
 
 # ... rest of your functions ...
 
@@ -432,7 +432,7 @@ async def request_feedback_command(update: Update, context: ContextTypes.DEFAULT
             await send_initial_feedback_message(target_chat_id, professional_ids_to_send, context)
             
             await update.message.reply_text(
-                f"Initial feedback request sent to chat ID `{target_chat_id}` for professionals: `{', '.join(professional_ids_to_send)}`.",
+                f"Initial feedback request sent to chat ID `{target_chat_id}` for Professionals: `{', '.join(professional_ids_to_send)}`.",
                 parse_mode='Markdown'
             )
             logger.info(f"Admin triggered initial feedback for {target_chat_id} with {professional_ids_to_send}")
@@ -470,7 +470,7 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
     # --- Handle initial feedback choices ---
     if callback_data == "feedback_no_contact":
         await query.edit_message_text(
-            text="Understood! We won't send rating requests for these professionals. Thank you for the update.",
+            text="Understood! We won't send rating requests for these Professionals. Thank you for the update.",
             reply_markup=None
         )
         # Clear session data
@@ -521,16 +521,16 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
     elif callback_data == "followup_rate_another":
         # Retrieve the original list of professional IDs sent to this user
         initial_professional_ids = user_session_data.get('initial_professional_ids', [])
-        # Retrieve the list of professionals already rated in this session
+        # Retrieve the list of Professionals already rated in this session
         rated_professional_ids = user_session_data.get('rated_professional_ids', set())
 
-        # Calculate the unrated professionals
+        # Calculate the unrated Professionals
         unrated_professional_ids = [
             pro_id for pro_id in initial_professional_ids if pro_id not in rated_professional_ids
         ]
         
         if unrated_professional_ids:
-            # Re-send the initial feedback message with only the unrated professionals
+            # Re-send the initial feedback message with only the unrated Professionals
             await send_initial_feedback_message(user_chat_id, unrated_professional_ids, context)
             # Remove the follow-up prompt buttons
             await query.edit_message_text(
@@ -540,13 +540,13 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
             logger.info(f"User {user_chat_id} chose to rate another professional. Resending initial choices (filtered).")
         else:
             await query.edit_message_text(
-                text="You have rated all professionals from this list! Thank you for your feedback. The rating process has ended.",
+                text="You have rated all Professionals from this list! Thank you for your feedback. The rating process has ended.",
                 reply_markup=None
             )
-            # Clear session data as all professionals have been rated
+            # Clear session data as all Professionals have been rated
             if user_chat_id in user_specific_data:
                 del user_specific_data[user_chat_id]
-            logger.info(f"User {user_chat_id} rated all professionals. Session data cleared.")
+            logger.info(f"User {user_chat_id} rated all Professionals. Session data cleared.")
 
     elif callback_data == "followup_end_rating":
         await query.edit_message_text(
@@ -585,12 +585,12 @@ async def greet_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.my_chat_member.new_chat_member.status == "member":
         chat_id = update.my_chat_member.chat.id
         await context.bot.send_message(chat_id, "\n               🎉Welcome to MUYA Bot!                                🎉እንኳን ወደ ሙያ ቦት በሰላም መጡ \n this bot is used to registor any Ethiopian" \
-        "professionals who are interested to find new job opportunities from their nighbour to their city. \n ይህ ቦት የሙያ ባለቤት የሆኑ ማንኛውም  ኢትይጵያውያንን የምንመዘግብበትና ባቅርያብያቸው ያሉ የስራ እድሎችን እና ባለሙያ ፈላጊዎችን በቀላሉ እንዲያገኙ የምናመቻችበት የምናደርግበት ቴክኖልጂ ነው። \n " \
+        "Professionals who are interested to find new job opportunities from their nighbour to their city. \n ይህ ቦት የሙያ ባለቤት የሆኑ ማንኛውም  ኢትይጵያውያንን የምንመዘግብበትና ባቅርያብያቸው ያሉ የስራ እድሎችን እና ባለሙያ ፈላጊዎችን በቀላሉ እንዲያገኙ የምናመቻችበት የምናደርግበት ቴክኖልጂ ነው። \n " \
         "any information you give to this bot will be given to people that want your contact to make you work for them \n በዚህ ቦት ላይ የሚያጋሯቸው መርጃዎችዎ ስራ ሊያሰሯቹ ለሚፈልጉ ሰዎች ይሰጣልይ \ን" \
         "ስለአሰራራችን የበለጠ ለማውቅ ወይም የትኛውም ጥይቄ ካልዎት ይህንን ይጫኑይጫኑ", reply_markup=main_menu_markup)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("\n🎉 Welcome to Debo Bot! \n🎉 እንኳን ወደ ደቦ ቦት በሰላም መጡ \n \n✅ this bot is used to registor any Ethiopian professionals who are interested to find new job opportunities from thier nighbour to thier city. \n \n ⚠️any information you give to this bot will be given to people that want your contact to make you work for them \n \nplease use the below menu to continue \n \n✅ይህ ቦት የሙያ ባለቤት የሆኑ ማንኛውም  ኢትይጵያውያንን የምንመዘግብበትና ባቅርያብያቸው ያሉ የስራ እድሎችን እንዲያገኙ ከባለሙያ ፈላጊዎች ጋር በቀላሉ እንዲገናኙ የምናደርግበት ነው። \n " \
+    await update.message.reply_text("\n🎉 Welcome to Debo Bot! \n🎉 እንኳን ወደ ደቦ ቦት በሰላም መጡ \n \n✅ this bot is used to registor any Ethiopian Professionals who are interested to find new job opportunities from thier nighbour to thier city. \n \n ⚠️any information you give to this bot will be given to people that want your contact to make you work for them \n \nplease use the below menu to continue \n \n✅ይህ ቦት የሙያ ባለቤት የሆኑ ማንኛውም  ኢትይጵያውያንን የምንመዘግብበትና ባቅርያብያቸው ያሉ የስራ እድሎችን እንዲያገኙ ከባለሙያ ፈላጊዎች ጋር በቀላሉ እንዲገናኙ የምናደርግበት ነው። \n " \
         " \n⚠️ በዚህ ቦት ላይ የሚያጋሯቸው መርጃዎችዎ ስራ ሊያሰሯችሁችሁ ለሚፈልጉ ሰዎች ይጋራሉ። \n \nለመቀጠል ከከስር ካሉት አማራጮች አንዱን ይጫኑ። \n \n ስለአሰራራችን የበለጠ ለማውቅ ወይም የትኛውም ጥይቄ ካልዎት ይህንን ይጫኑ", reply_markup=main_menu_markup)
 
 
@@ -1164,13 +1164,13 @@ def main():
         raise ValueError("SPREADSHEET_ID_DEBO environment variable not set.")
     
     try:
-        # Assuming your main professionals sheet is named "professionals"
-        # IMPORTANT: Verify 'professionals' is the exact name of your sheet holding professional data
+        # Assuming your main Professionals sheet is named "Professionals"
+        # IMPORTANT: Verify 'Professionals' is the exact name of your sheet holding professional data
         main_worksheet = gc.open_by_key(spreadsheet_id).worksheet("Professionals") 
         app.bot_data["main_worksheet"] = main_worksheet # Store worksheet in bot_data for easy access
-        logger.info("Google Sheet 'professionals' opened successfully.")
+        logger.info("Google Sheet 'Professionals' opened successfully.")
     except Exception as e:
-        logger.error(f"Failed to open Google Sheet 'professionals': {e}")
+        logger.error(f"Failed to open Google Sheet 'Professionals': {e}")
         # Depending on criticality, you might want to exit or handle gracefully
         # If sheet cannot be opened, professional name lookup will fail.
 
