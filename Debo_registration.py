@@ -197,7 +197,7 @@ async def send_initial_feedback_message(chat_id: int, professional_ids: list[str
     Stores the professional_ids in user_data for later reference.
     """
     # Store the list of professionals sent for this user, so we can refer back to them later.
-    user_specific_data[chat_id] = {'initial_professional_ids': professional_ids, , 'rated_professional_ids': set()}
+    user_specific_data[chat_id] = {'initial_professional_ids': professional_ids, 'rated_professional_ids': set()}
     keyboard = []
 
     # Add the static choices
