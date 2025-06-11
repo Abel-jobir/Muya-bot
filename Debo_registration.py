@@ -1181,7 +1181,7 @@ def main():
     # --- End Google Sheets Setup ---
 
     # Register the startup task to load names
-    app.add_startup_tasks([post_init_tasks])
+    app.post_init = post_init_tasks
     
 
     
