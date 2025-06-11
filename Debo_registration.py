@@ -1261,7 +1261,7 @@ def main():
     fake_context = FakeContext(app)
     
 
-    app.post_init = post_init_tasks # This is the cleanest way in PTB v20+
+    app.post_init = startup_task # This is the cleanest way in PTB v20+
     app.add_handler(CommandHandler("reload_names", lambda update, context: load_professional_names_from_sheet(context)))
     app.add_handler(register_conv)
     app.add_handler(edit_conv)
