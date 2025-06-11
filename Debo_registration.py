@@ -1168,7 +1168,7 @@ def main():
     try:
         # Assuming your main Professionals sheet is named "Professionals"
         # IMPORTANT: Verify 'Professionals' is the exact name of your sheet holding professional data
-        main_worksheet = gc.open_by_key(spreadsheet_id).worksheet("Professionals") 
+        main_worksheet = gc.open_by_key(spreadsheet_id).worksheet("Sheet1") 
         app.bot_data["main_worksheet"] = main_worksheet # Store worksheet in bot_data for easy access
         logger.info("Google Sheet 'Professionals' opened successfully.")
     except Exception as e:
