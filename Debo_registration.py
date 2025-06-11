@@ -197,7 +197,7 @@ async def send_initial_feedback_message(chat_id: int, professional_ids: list[str
     Stores the professional_ids in user_data for later reference.
     """
     # Store the list of professionals sent for this user, so we can refer back to them later.
-    user_specific_data[chat_id] = {'initial_professional_ids': professional_ids}
+    user_specific_data[chat_id] = {'initial_professional_ids': professional_ids, , 'rated_professional_ids': set()}
     keyboard = []
 
     # Add the static choices
@@ -257,14 +257,16 @@ async def handle_rating_callback(update: Update, context: ContextTypes.DEFAULT_T
 # CODE.txt (Add this new function)
 
 async def send_follow_up_rating_prompt(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
-    """
+        """
     Sends a follow-up message asking the user if they want to rate another professional
     or end the rating process.
     """
-    # Check if there are still professionals in the list that haven't been explicitly rated
-    # This logic will be fully robust once we implement storing the list and tracking rated ones
-    # For now, it just assumes the option to rate another is always available
-    professional_ids_for_user = user_specific_data.get(chat_id, {}).get('initial_professional_ids', [])
+    # CORRECTED: Use the global user_specific_data dictionary
+    user_session_data = user_specific_data.get(chat_id, {'initial_professional_ids': [], 'rated_professional_ids': set()})
+    # These variables aren't directly used in *this* function's current logic,
+    # but the line is kept for consistency in accessing session data.
+    initial_professional_ids = user_session_data.get('initial_professional_ids', [])
+    rated_professional_ids = user_session_data.get('rated_professional_ids', set())
   
     keyboard = [
         [
@@ -281,7 +283,7 @@ async def send_follow_up_rating_prompt(chat_id: int, context: ContextTypes.DEFAU
     )
 
 
-
+# CODE.txt (modify the existing send_rating_to_apps_script function)
 
 async def send_rating_to_apps_script(professional_id: str, rating_value: int, user_telegram_id: int, query_object: CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -290,7 +292,7 @@ async def send_rating_to_apps_script(professional_id: str, rating_value: int, us
     payload = {
         "professional_id": professional_id,
         "rating": rating_value,
-        "user_telegram_id": str(user_telegram_id) # Ensure user_telegram_id is a string for JSON
+        "user_telegram_id": str(user_telegram_id)
     }
     headers = {
         "Content-Type": "application/json"
@@ -298,25 +300,26 @@ async def send_rating_to_apps_script(professional_id: str, rating_value: int, us
 
     try:
         response = requests.post(APPS_SCRIPT_WEB_APP_URL, data=json.dumps(payload), headers=headers)
-        response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status()
 
         response_json = response.json()
         if response_json.get("success"):
-            # Edit the original message to show confirmation of THIS rating
             await query_object.edit_message_text(
                 text=f"✅ Thanks! Your *{rating_value}-star* rating for professional *{professional_id}* has been recorded.",
                 parse_mode='Markdown',
-                reply_markup=None # Remove the inline keyboard from the rated professional
+                reply_markup=None
             )
             logger.info(f"Successfully sent rating for {professional_id} by {user_telegram_id}: {rating_value} stars.")
-            user_data_for_current = await context.application.get_user_data(user_telegram_id)
-            if 'rated_professional_ids' not in user_data_for_current:
-                user_data_for_current['rated_professional_ids'] = set() # Use a set for efficient lookups
-            user_data_for_current['rated_professional_ids'].add(professional_id)
-            # --- NEW: Send the follow-up prompt ---
-            # The list of professionals will be stored in context.user_data in a later step
-            # For now, assume context.user_data['professional_ids_sent_for_rating'] exists
-            await send_follow_up_rating_prompt(user_telegram_id, context) # <--- ADD THIS LINE
+
+            # --- NEW LOGIC: Store that this professional has been rated ---
+            # CORRECTED: Use the global user_specific_data dictionary
+            # Ensure the user's entry exists before trying to access its keys
+            if user_telegram_id not in user_specific_data:
+                user_specific_data[user_telegram_id] = {'initial_professional_ids': [], 'rated_professional_ids': set()}
+            user_specific_data[user_telegram_id]['rated_professional_ids'].add(professional_id)
+            # --- END NEW LOGIC ---
+
+            await send_follow_up_rating_prompt(user_telegram_id, context)
 
         else:
             error_message = response_json.get("error", "Unknown error from server.")
@@ -378,7 +381,7 @@ async def request_feedback_command(update: Update, context: ContextTypes.DEFAULT
 
 # ... rest of your functions ...
 
-# CODE.txt (Add this new function)
+# CODE.txt (modify the existing handle_initial_feedback_callback function)
 
 async def handle_initial_feedback_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -388,55 +391,56 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
     callback_data = query.data
     user_chat_id = query.from_user.id
 
-    await query.answer() # Always answer the callback query to remove the "loading" spinner
+    await query.answer()
 
-    user_data_for_current = await context.application.get_user_data(user_chat_id)
+    # --- Retrieve user data for current session ---
+    # CORRECTED: Use the global user_specific_data dictionary
+    user_session_data = user_specific_data.get(user_chat_id, {'initial_professional_ids': [], 'rated_professional_ids': set()})
+    # --- END Retrieve user data ---
+
     # --- Handle initial feedback choices ---
     if callback_data == "feedback_no_contact":
         await query.edit_message_text(
             text="Understood! We won't send rating requests for these professionals. Thank you for the update.",
-            reply_markup=None # Remove buttons
+            reply_markup=None
         )
-        # You can add logic here to record this in your sheet/database
-        logger.info(f"User {user_chat_id} chose 'no contact'.")
-        if user_chat_id in context.application.user_data: # Use this check if you need to ensure the key exists before deleting
-            del context.application.user_data[user_chat_id]
+        # Clear session data
+        if user_chat_id in user_specific_data:
+            del user_specific_data[user_chat_id]
         logger.info(f"User {user_chat_id} chose 'no contact'. Session data cleared.")
+
     elif callback_data == "feedback_will_contact":
         await query.edit_message_text(
             text="Okay, please let us know if you contact them! We won't send immediate rating requests.",
-            reply_markup=None # Remove buttons
+            reply_markup=None
         )
-        # Clear session data as process is ended
-        if user_chat_id in context.application.user_data:
-            del context.application.user_data[user_chat_id]
-        # You can add logic here to record this in your sheet/database
-        logger.info(f"User {user_chat_id} chose 'will contact soon'.")
+        # Clear session data
+        if user_chat_id in user_specific_data:
+            del user_specific_data[user_chat_id]
+        logger.info(f"User {user_chat_id} chose 'will contact soon'. Session data cleared.")
 
     elif callback_data == "feedback_opt_out":
         await query.edit_message_text(
             text="Got it. We won't send you these types of messages again. You can always reactivate feedback requests by contacting support.",
-            reply_markup=None # Remove buttons
+            reply_markup=None
         )
-        # IMPORTANT: Implement logic here to store this opt-out preference in your sheet/database
-        # and ensure you don't send future feedback requests to this user.
-        if user_chat_id in context.application.user_data:
-            del context.application.user_data[user_chat_id]
-        logger.info(f"User {user_chat_id} opted out of feedback requests.")
+        # IMPORTANT: Implement logic here to store this opt-out preference persistently
+        # e.g., in your Google Sheet for this user ID.
+        # Clear session data
+        if user_chat_id in user_specific_data:
+            del user_specific_data[user_chat_id]
+        logger.info(f"User {user_chat_id} opted out of feedback requests. Session data cleared.")
         
     elif callback_data.startswith("feedback_select_pro_"):
         try:
             professional_id = callback_data.split('_')[2]
             
-            # Edit the original message to indicate selection, but keep it so other buttons can be clicked
-            # Or, you can send a new message with just the rating prompt.
             await query.edit_message_text(
                 text=f"You selected professional: *{professional_id}*."
                      f"\nNow, please use the stars in the *next message* to rate them.",
                 parse_mode='Markdown'
             )
             
-            # Call the existing function to send the 1-5 star rating prompt for this professional
             await send_rating_request(user_chat_id, professional_id, context)
             logger.info(f"User {user_chat_id} selected {professional_id} for rating.")
 
@@ -447,9 +451,9 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
     # --- Handle follow-up choices after a rating ---
     elif callback_data == "followup_rate_another":
         # Retrieve the original list of professional IDs sent to this user
-        initial_professional_ids = user_data_for_current.get('initial_professional_ids', [])
+        initial_professional_ids = user_session_data.get('initial_professional_ids', [])
         # Retrieve the list of professionals already rated in this session
-        rated_professional_ids = user_data_for_current.get('rated_professional_ids', set())
+        rated_professional_ids = user_session_data.get('rated_professional_ids', set())
 
         # Calculate the unrated professionals
         unrated_professional_ids = [
@@ -471,25 +475,21 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
                 reply_markup=None
             )
             # Clear session data as all professionals have been rated
-            if user_chat_id in context.application.user_data:
-                del context.application.user_data[user_chat_id]
+            if user_chat_id in user_specific_data:
+                del user_specific_data[user_chat_id]
             logger.info(f"User {user_chat_id} rated all professionals. Session data cleared.")
 
-  
     elif callback_data == "followup_end_rating":
         await query.edit_message_text(
             text="Thank you for your feedback! The rating process has ended.",
-            reply_markup=None # Remove buttons
+            reply_markup=None
         )
-        # You might also want to clear context.user_data[user_chat_id] here if no longer needed
+        # Clear session data
         if user_chat_id in user_specific_data:
-            del user_specific_data[user_chat_id] # <--- ADD/CHANGE THIS LINE
-        logger.info(f"User {user_chat_id} ended the rating process.")
+            del user_specific_data[user_chat_id]
+        logger.info(f"User {user_chat_id} ended the rating process. Session data cleared.")
 
-    # Prevent the general handle_rating_callback from processing these specific callbacks
     return
-
-# ... rest of your functions ...
 
 
 
