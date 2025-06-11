@@ -257,10 +257,7 @@ async def handle_rating_callback(update: Update, context: ContextTypes.DEFAULT_T
 # CODE.txt (Add this new function)
 
 async def send_follow_up_rating_prompt(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
-        """
-    Sends a follow-up message asking the user if they want to rate another professional
-    or end the rating process.
-    """
+    
     # CORRECTED: Use the global user_specific_data dictionary
     user_session_data = user_specific_data.get(chat_id, {'initial_professional_ids': [], 'rated_professional_ids': set()})
     # These variables aren't directly used in *this* function's current logic,
