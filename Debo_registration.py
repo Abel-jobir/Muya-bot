@@ -1189,7 +1189,6 @@ def main():
     app.add_handler(ChatMemberHandler(greet_new_user, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(CommandHandler("start", start))
 
-    Replace YOUR_ADMIN_TELEGRAM_ID with your actual admin ID if you want to restrict this command
     app.add_handler(CommandHandler("request_feedback", request_feedback_command, filters=filters.User(os.environ.get("401674551"))))
     app.add_handler(CallbackQueryHandler(handle_initial_feedback_callback, pattern='^feedback_|^followup_'))
     app.add_handler(CallbackQueryHandler(handle_rating_callback, pattern='^rate_'))
