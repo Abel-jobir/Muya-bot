@@ -1257,7 +1257,7 @@ def main():
         await load_professional_names_from_sheet(application.create_context(update=None, chat_id=None, user_id=None)) # Use create_context for proper context object
         logger.info("Professional names loaded successfully on startup.")
 
-    app.add_startup_tasks([startup_task]) # This is the cleanest way in PTB v20+
+    app.post_init = startup_task # This is the cleanest way in PTB v20+
     app.add_handler(CommandHandler("reload_names", lambda update, context: load_professional_names_from_sheet(context)))
     app.add_handler(register_conv)
     app.add_handler(edit_conv)
