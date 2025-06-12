@@ -289,7 +289,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     # Replace with your new bot token
-    application = Application.builder().token("7985992390:AAHjON8SnDyD2U9ZXp1la24fIgFe8_JS3Ec").build()
+    application = Application.builder().token("TELEGRAM_BOT_TOKEN").build()
 
     # Handler for the /start command
     application.add_handler(CommandHandler("start", start))
