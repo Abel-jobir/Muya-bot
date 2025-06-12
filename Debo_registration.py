@@ -174,59 +174,56 @@ professional_names_lookup = {}
 
 async def load_professional_names_from_sheet(context: ContextTypes.DEFAULT_TYPE):
     """
-    Loads all professional IDs and their full names from the Google Sheet
-    into the global professional_names_lookup dictionary.
+    Loads all professional IDs and their full names from the main sheet
+    into a global lookup dictionary.
     """
     global professional_names_lookup
     logger.info("Loading professional names from Google Sheet...")
-
     try:
-        # Try to use the cached worksheet from bot_data
+        # Assuming `worksheet` is already available globally or can be accessed through context.bot_data/context.application.bot_data
+        # If worksheet is not global, you might need to re-authorize gspread or pass it.
+        # For simplicity, let's assume `gc` (gspread client) is available, which it should be from main().
+        # You'll need to open the specific worksheet.
+        
+        # Ensure `gc` and `SPREADSHEET_ID_DEBO` are accessible.
+        # This part requires access to the `gc` object and `SPREADSHEET_ID_DEBO` global variable or passed context.
+        # Let's assume `gc` and `worksheet` from `main()` are globally accessible after setup.
+        # Or, if `worksheet` is stored in `app.bot_data`, retrieve it:
         worksheet = context.application.bot_data.get("main_worksheet")
-
-        # If missing, reinitialize gspread and load it
         if not worksheet:
+            # Re-initialize gspread client if not found (less efficient, but robust)
             scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-            creds_json_str = os.environ.get("deboregist")
-            if not creds_json_str:
-                raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
-
+            creds_json_str = os.environ.get("deboregist") # Ensure this env var is correct
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_creds_file:
                 temp_creds_file.write(creds_json_str)
-                temp_path = temp_creds_file.name
-
-            creds = ServiceAccountCredentials.from_json_keyfile_name(temp_path, scope)
+            creds = ServiceAccountCredentials.from_json_keyfile_name(temp_creds_file.name, scope)
             gc = gspread.authorize(creds)
-
-            spreadsheet_id = os.environ.get("SPREADSHEET_ID_DEBO")
-            if not spreadsheet_id:
-                raise ValueError("SPREADSHEET_ID_DEBO environment variable not set.")
-
-            worksheet = gc.open_by_key(spreadsheet_id).worksheet("Sheet1")  # ✅ Fix: Use the correct sheet name
-            context.application.bot_data["main_worksheet"] = worksheet  # Cache it for reuse
+            spreadsheet_id = os.environ.get("SPREADSHEET_ID_DEBO") # Ensure this env var is correct
+            worksheet = gc.open_by_key(spreadsheet_id).FakeContext # Assuming 'Professionals' is your main sheet name
+            context.application.bot_data["main_worksheet"] = worksheet # Store for future use
 
         all_data = worksheet.get_all_values()
+        
         if not all_data:
             logger.warning("No data found in the Professionals sheet.")
             return
 
-        # Process rows, skipping header
+        # Skip header row if exists
         data_rows = all_data[1:] if len(all_data) > 1 else []
-        lookup = {}
 
+        lookup = {}
         for row in data_rows:
             if len(row) > max(PROFESSIONAL_ID_COL_MAIN_SHEET, PROFESSIONAL_NAME_COL_MAIN_SHEET):
-                pro_id = row[PROFESSIONAL_ID_COL_MAIN_SHEET].strip()
-                pro_name = row[PROFESSIONAL_NAME_COL_MAIN_SHEET].strip()
-                if pro_id:
+                pro_id = row[PROFESSIONAL_ID_COL_MAIN_SHEET]
+                pro_name = row[PROFESSIONAL_NAME_COL_MAIN_SHEET]
+                if pro_id: # Only add if professional ID is not empty
                     lookup[pro_id] = pro_name
-
+        
         professional_names_lookup = lookup
-        logger.info(f"✅ Loaded {len(professional_names_lookup)} professional names.")
+        logger.info(f"Loaded {len(professional_names_lookup)} professional names.")
 
     except Exception as e:
-        logger.error(f"❌ Error loading professional names from sheet: {e}")
-
+        logger.error(f"Error loading professional names from sheet: {e}")
 
 async def post_init_tasks(application: Application):
     """Tasks to run after the Application is initialized, before polling starts."""
@@ -1148,11 +1145,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def startup_task(application: Application):
-    worksheet = application.bot_data.get("main_worksheet")
-    if not worksheet:
-        raise ValueError("Worksheet not loaded in bot_data.")
-    
-    await load_professional_names_from_sheet(worksheet)
+    """Tasks to run after the Application is initialized, before polling starts."""
+    dummy_context = application.create_context(update=None, chat_id=None, user_id=None)
+    await load_professional_names_from_sheet(dummy_context)
     logger.info("Professional names loaded successfully on startup.")
 
 def main():
