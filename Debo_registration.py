@@ -1104,7 +1104,8 @@ async def startup_task(application: Application):
         try:
             logger.info("Attempting to open Google Spreadsheet 'debo_registration'...")
             # Use 'gc' for the client, as defined above
-            spreadsheet = gc.open("debo_registration")
+            spreadsheet_id = "16l_rYpXX1hrEUNS9DOCU2naCij-U635unpD12WDDggA"
+            spreadsheet = gc.open_by_key(spreadsheet_id)
             logger.info(f"Successfully opened Google Spreadsheet: '{spreadsheet.title}' (ID: {spreadsheet.id})")
 
             logger.info("Attempting to open worksheet 'Sheet1' within 'debo_registration'...")
