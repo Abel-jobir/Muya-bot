@@ -29,7 +29,9 @@ logger = logging.getLogger(__name__)
 user_specific_data = {}
 PROFESSIONAL_ID_COL_MAIN_SHEET = 0 # Assuming 'Professional_ID' is in column A
 PROFESSIONAL_NAME_COL_MAIN_SHEET = 2 # Assuming 'Full_Name' is in column B
-
+# Define your conversation states (if not already defined)
+# EDUCATIONAL_DOCS = 1 # Example state
+# FINISHED_REGISTRATION = 2 # Example state, or whatever comes next
 # Assuming 'import os' is at the very top of your file.
 
 # --- Telegram Bot Token Setup ---
@@ -675,49 +677,69 @@ async def ask_for_educational_docs(update: Update, context: ContextTypes.DEFAULT
     context.user_data['education_links'] = []
     return EDUCATIONAL_DOCS
 
+async def handle_educational_docs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    # Retrieve credentials from bot_data
+    creds = context.application.bot_data.get("gdrive_creds")
+    if not creds:
+        logger.error(f"Google Drive credentials not found in bot_data for user {update.effective_user.id}.")
+        await update.message.reply_text("Error: Could not access Google Drive for uploads. Please try again later or contact support.")
+        return ConversationHandler.END # Or a more appropriate return state
 
-async def handle_educational_docs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text:
         text = update.message.text.lower()
-        # Check if 'Skip' button text is included - handle both English and Amharic if possible
         if "skip" in text or "አሳልፍ" in text:
-             return await finish_registration(update, context)
-        # Check if 'Done' button text is included - handle both English and Amharic if possible
+            await update.message.reply_text("Skipping educational documents. Thank you for registering! \n የትምህርት ማስረጃዎችዎን ማስገባት ስላልፈለጉ ተዘሏል! ስለተመዘገቡ እናመሰግናለን።", reply_markup=ReplyKeyboardRemove())
+            # Assuming a function to finalize registration, e.g., finalize_registration
+            # return await finalize_registration(update, context)
+            return ConversationHandler.END # Example: End the conversation
         elif "done" in text or "ተጠናቋል" in text:
-            # User clicked done, proceed to finish registration
             if not context.user_data.get('educational_links'):
-                 await update.message.reply_text("No educational files were uploaded. Skipping. ምንም አይነት የሰሯቸውን ስራዎች ማስርጃ አላስገቡም!", reply_markup=ReplyKeyboardRemove())
-            return await finish_registration(update, context)
-
+                await update.message.reply_text("No educational files were uploaded. \n ምንም አይነት የትምህርት ማስረጃ አላስገቡም።", reply_markup=ReplyKeyboardRemove())
+            await update.message.reply_text("Thank you for registering! \n ስለተመዘገቡ እናመሰግናለን።", reply_markup=ReplyKeyboardRemove())
+            # Assuming a function to finalize registration, e.g., finalize_registration
+            # return await finalize_registration(update, context)
+            return ConversationHandler.END # Example: End the conversation
+        else:
+            await update.message.reply_text("Please upload a document/photo or use the buttons. የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ ", reply_markup=skip_done_markup)
+            return EDUCATIONAL_DOCS
 
     if update.message.document or update.message.photo:
-        education_folder_id = "1i9a2G7EXByrY9LxXtv4yY-CMExDWI7hM"
+        education_folder_id = "1i9a2G7EXByrY9LxXtv4yY-CMExDWI7hM" # Replace with your actual folder ID
 
         file = update.message.document or update.message.photo[-1]
         file_id = file.file_id
         file_obj = await context.bot.get_file(file_id)
 
-        # Create and close the temp file first
+        filename = file.file_name if update.message.document else f"edu_photo_{file_id}.jpg"
+
         with tempfile.NamedTemporaryFile(delete=False) as tf:
             temp_path = tf.name
             await file_obj.download_to_drive(temp_path)
 
-        filename = file.file_name if update.message.document else f"photo_{file_id}.jpg"
-        link = upload_to_drive(temp_path, education_folder_id, filename)
+        try:
+            # CORRECTED: Pass the credentials to upload_to_drive
+            link = upload_to_drive(temp_path, education_folder_id, filename, creds) # <--- CORRECTED LINE
 
-        # Ensure educational_links is initialized and append the link
-        if 'educational_links' not in context.user_data:
-            context.user_data['educational_links'] = []
-        context.user_data['educational_links'].append(link)
+            if 'educational_links' not in context.user_data:
+                context.user_data['educational_links'] = []
+            context.user_data['educational_links'].append(link)
 
-        os.remove(temp_path)
+            await update.message.reply_text("File received. Upload more or select an option: ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
+            return EDUCATIONAL_DOCS
 
-        await update.message.reply_text("Educational file received. Upload more or select an option:የትምህርት ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
-        return EDUCATIONAL_DOCS
+        except Exception as e:
+            logger.error(f"Error uploading educational file {filename} to Drive: {e}", exc_info=True)
+            await update.message.reply_text("There was an error uploading your file. Please try again.")
+            return EDUCATIONAL_DOCS # Stay in the same state to allow re-attempt
+
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
     else:
-        # Handle unexpected input
-        await update.message.reply_text("Please upload a document/photo or use the buttons. የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ", reply_markup=skip_done_markup)
+        await update.message.reply_text("Please upload a document/photo or use the buttons. የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ ", reply_markup=skip_done_markup)
         return EDUCATIONAL_DOCS
+
     
 async def finish_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
