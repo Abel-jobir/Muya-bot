@@ -1250,6 +1250,6 @@ def main():
     YOUR_ADMIN_TELEGRAM_ID =401674551 # <--- REPLACE WITH YOUR TELEGRAM USER ID
     app.add_handler(CommandHandler("request_feedback", request_feedback_command, filters=filters.User(401674551))) # <--- ADD THIS LINE
     app.run_polling()
-
+    echo("hiiiii")
 if __name__ == '__main__':
     main()
