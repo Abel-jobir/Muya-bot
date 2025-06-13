@@ -1135,19 +1135,15 @@ async def load_professional_names_from_sheet(worksheet):
 def main():
     
     app = Application.builder().token(TOKEN).build()
-
     # --- Google Sheets Setup ---
     # This block needs to be here to initialize gspread and open the sheet
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
     if not GOOGLE_CREDENTIALS_JSON_PATH:
-        raise ValueError("GOOGLE_CREDENTIALS_JSON_PATH environment variable not set or empty.")
-
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_creds_file:
-        temp_creds_file.write(GOOGLE_CREDENTIALS_JSON_PATH)
-        temp_path = temp_creds_file.name
-
-    creds = ServiceAccountCredentials.from_json_keyfile_name(temp_path, scope)
+        raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
+    
+    # CORRECTED LINE: Directly use the path from the environment variable
+    creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_CREDENTIALS_JSON_PATH, scope)
     gc = gspread.authorize(creds)
     
     spreadsheet_id = os.environ.get("SPREADSHEET_ID_DEBO")
@@ -1155,28 +1151,27 @@ def main():
         raise ValueError("SPREADSHEET_ID_DEBO environment variable not set.")
     
     try:
-        # Assuming your main Professionals sheet is named "Professionals"
-        # IMPORTANT: Verify 'Professionals' is the exact name of your sheet holding professional data
-        main_worksheet = gc.open_by_key(spreadsheet_id).worksheet("Sheet1") 
+        # Assuming your main Professionals sheet is named "Sheet1"
+        main_worksheet = gc.open_by_key(spreadsheet_id).worksheet("Sheet1")
         app.bot_data["main_worksheet"] = main_worksheet # Store worksheet in bot_data for easy access
-        logger.info("Google Sheet 'Professionals' opened successfully.")
+        logger.info("Google Sheet 'Sheet1' opened successfully.") # Changed to Sheet1 based on code
     except Exception as e:
-        logger.error(f"Failed to open Google Sheet 'Professionals': {e}")
-        # Depending on criticality, you might want to exit or handle gracefully
-        # If sheet cannot be opened, professional name lookup will fail.
-
+        logger.error(f"Failed to open Google Sheet 'Sheet1': {e}") # Changed to Sheet1 based on code
+    
+    # IMPORTANT: Also remove the os.remove(temp_creds_file.name) line (around line 1195)
+    # as the temporary file is no longer created.
+    # --- End Google Sheets Setup ---
+    
+  
+  
     # Remove the temporary credential file after use
     os.remove(temp_creds_file.name)
     # --- End Google Sheets Setup ---
 
     # Register the startup task to load names
     app.post_init = startup_task
-    
-
-    
-
-
   
+
     app.add_handler(ChatMemberHandler(greet_new_user, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(CommandHandler("start", start))
 
