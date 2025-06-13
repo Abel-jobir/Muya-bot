@@ -1082,40 +1082,61 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def startup_task(application: Application):
+    logger.info("Running startup_task...")
     # Google Sheets setup
-    # Define scope once, outside the try block if used globally for creds
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    
+
     # Get the Google Credentials JSON path from its dedicated environment variable
     GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-    
-    try:
-        # Remove duplicate 'scope' definition if it was inside this try block.
-        # The 'DEBO_TOKEN' definition and print also removed from here as they are moved above.
-    
-        print(f"DEBUG: GOOGLE_CREDENTIALS_JSON_PATH within script: '{GOOGLE_CREDENTIALS_JSON_PATH}'")
-    
-        if not GOOGLE_CREDENTIALS_JSON_PATH:
-            raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
-    
-        creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_CREDENTIALS_JSON_PATH, scope)
-        client = gspread.authorize(creds)
-        sheet = client.open("debo_registration").sheet1
-        logger.info("Successfully connected to Google Sheet 'debo_registration'")
-    except Exception as e:
-        logger.error(f"Error connecting to Google Sheets: {e}")
-    
-    # ... (rest of your code, including the main() function where Application is built with DEBO_TOKEN)
 
-  
-    
+    try:
+        logger.info(f"DEBUG: GOOGLE_CREDENTIALS_JSON_PATH within script: '{GOOGLE_CREDENTIALS_JSON_PATH}'")
+
+        if not GOOGLE_CREDENTIALS_JSON_PATH:
+            logger.error("GOOGLE_CREDENTIALS_JSON environment variable not set. Cannot proceed with Google Sheets connection.")
+            raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
+
+        logger.info("Attempting to authorize gspread client...")
+        creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_CREDENTIALS_JSON_PATH, scope)
+        gc = gspread.authorize(creds)
+        logger.info("gspread client authorized successfully.")
+
+        try:
+            logger.info("Attempting to open Google Spreadsheet 'debo_registration'...")
+            # Use 'gc' for the client, as defined above
+            spreadsheet = gc.open("debo_registration")
+            logger.info(f"Successfully opened Google Spreadsheet: '{spreadsheet.title}' (ID: {spreadsheet.id})")
+
+            logger.info("Attempting to open worksheet 'Sheet1' within 'debo_registration'...")
+            worksheet = spreadsheet.worksheet("Sheet1")
+            logger.info(f"Successfully opened worksheet: '{worksheet.title}'")
+
+            application.bot_data["main_worksheet"] = worksheet
+            logger.info("Worksheet 'Sheet1' loaded into bot_data successfully as 'main_worksheet'.")
+
+        except gspread.exceptions.SpreadsheetNotFound:
+            logger.error(f"Google Spreadsheet 'debo_registration' not found. Please check the name and sharing permissions for service account {creds.service_account_email}.", exc_info=True)
+            raise ValueError("Worksheet not loaded in bot_data. Spreadsheet not found.")
+        except gspread.exceptions.WorksheetNotFound:
+            logger.error(f"Worksheet 'Sheet1' not found within spreadsheet 'debo_registration'. Please check the worksheet name.", exc_info=True)
+            raise ValueError("Worksheet not loaded in bot_data. Worksheet not found.")
+        except Exception as e:
+            logger.error(f"Failed to open Google Sheet 'debo_registration' or 'Sheet1' with gspread: {e}", exc_info=True)
+            raise ValueError(f"Worksheet not loaded in bot_data. Detailed error: {e}")
+
+    except Exception as e:
+        logger.error(f"Critical error during gspread authorization or initial sheet loading: {e}", exc_info=True)
+        # Re-raise the ValueError to ensure the bot startup fails if the sheet isn't loaded
+        raise ValueError(f"Worksheet not loaded in bot_data. Critical startup error: {e}")
+
+    # Ensure main_worksheet is available before proceeding
     worksheet = application.bot_data.get("main_worksheet")
     if not worksheet:
-        raise ValueError("Worksheet not loaded in bot_data.")
-    
+        logger.critical("main_worksheet is still None after attempts to load. This should not happen if previous errors are handled correctly.")
+        raise ValueError("Worksheet not loaded in bot_data during final check.")
+
     await load_professional_names_from_sheet(worksheet)
     logger.info("Professional names loaded successfully on startup.")
-
 
 async def load_professional_names_from_sheet(worksheet):
     """
