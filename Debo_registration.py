@@ -1139,12 +1139,12 @@ def main():
     # --- Google Sheets Setup ---
     # This block needs to be here to initialize gspread and open the sheet
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds_json_content = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-    if not creds_json_content:
-        raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set or empty.")
+    GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    if not GOOGLE_CREDENTIALS_JSON_PATH:
+        raise ValueError("GOOGLE_CREDENTIALS_JSON_PATH environment variable not set or empty.")
 
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_creds_file:
-        temp_creds_file.write(creds_json_content)
+        temp_creds_file.write(GOOGLE_CREDENTIALS_JSON_PATH)
         temp_path = temp_creds_file.name
 
     creds = ServiceAccountCredentials.from_json_keyfile_name(temp_path, scope)
