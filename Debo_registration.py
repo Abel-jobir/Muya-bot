@@ -35,11 +35,11 @@ logger = logging.getLogger(__name__)
 logger.info(f"python-telegram-bot version: {telegram.__version__}")
 # Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("TELEGRAM_BOT_TOKEN_DEBO")
 try:
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     # Attempt to get the path from environment variable, otherwise fallback to local file
-    GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("TELEGRAM_BOT_TOKEN_DEBO")
     print(f"DEBUG: GOOGLE_CREDENTIALS_JSON_PATH within script: '{GOOGLE_CREDENTIALS_JSON_PATH}'") # This is your debug line
 
     # Correct this section to ensure it uses GOOGLE_CREDENTIALS_JSON_PATH
@@ -1139,7 +1139,7 @@ def main():
     # --- Google Sheets Setup ---
     # This block needs to be here to initialize gspread and open the sheet
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("TELEGRAM_BOT_TOKEN_DEBO")
     if not GOOGLE_CREDENTIALS_JSON_PATH:
         raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
     
