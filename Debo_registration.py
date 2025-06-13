@@ -16,6 +16,8 @@ import requests
 import re
 import asyncio
 import telegram
+import tempfile
+from datetime import datetime
 
 # Enable logging
 logging.basicConfig(
@@ -131,7 +133,7 @@ def is_valid_phone_number(phone_number: str) -> bool:
     return False
 
 #upload_to_drive
-def upload_to_drive(file_path, folder_id, filename):
+def upload_to_drive(file_path, folder_id, filename,creds):
     drive_service = build('drive', 'v3', credentials=creds)
     file_metadata = {
         'name': filename,
@@ -597,52 +599,73 @@ async def ask_for_testimonials(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data['testimonial_links'] = []
     return TESTIMONIALS
 
-
-
 async def handle_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Retrieve credentials from bot_data
+    creds = context.application.bot_data.get("gdrive_creds")
+    if not creds:
+        logger.error(f"Google Drive credentials not found in bot_data for user {update.effective_user.id}.")
+        await update.message.reply_text("Error: Could not access Google Drive for uploads. Please try again later or contact support.")
+        return ConversationHandler.END # Or a more appropriate return state
 
     if update.message.text:
         text = update.message.text.lower()
-        # Check if 'Skip' button text is included - handle both English and Amharic if possible, or just English for buttons
         if "skip" in text or "አሳልፍ" in text:
+            # Assuming ask_for_educational_docs exists and is defined
             return await ask_for_educational_docs(update, context)
-        # Check if 'Done' button text is included - handle both English and Amharic if possible
         elif "done" in text or "ተጠናቋል" in text:
-             # User clicked done, proceed to next step (ask for educational docs)
-             if not context.user_data.get('testimonial_links'):
-                 await update.message.reply_text("No testimonial files were uploaded. Skipping.  \n ምንም አይነት የሰሯቸውን ስራዎች ማስርጃ አላስገቡም!", reply_markup=ReplyKeyboardRemove())
-             return await ask_for_educational_docs(update, context)
+            if not context.user_data.get('testimonial_links'):
+                await update.message.reply_text("No testimonial files were uploaded. Skipping. \n ምንም አይነት የሰሯቸውን ስራዎች ማስርጃ አላስገቡም!", reply_markup=ReplyKeyboardRemove())
+            # Assuming ask_for_educational_docs exists and is defined
+            return await ask_for_educational_docs(update, context)
+        else:
+            # Handle unexpected text input
+            await update.message.reply_text("Please upload a document/photo or use the buttons. የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ", reply_markup=skip_done_markup)
+            return TESTIMONIALS
+
 
     if update.message.document or update.message.photo:
-        testimonial_folder_id = "1TMehhfN9tExqoaHIYya-B-SCcFeBTj2y"
+        testimonial_folder_id = "1TMehhfN9tExqoaHIYya-B-SCcFeBTj2y" # Your folder ID
 
         file = update.message.document or update.message.photo[-1]
         file_id = file.file_id
         file_obj = await context.bot.get_file(file_id)
-        # Create temp file and download into it
-        with tempfile.NamedTemporaryFile(delete=False) as tf:
 
+        filename = file.file_name if update.message.document else f"photo_{file_id}.jpg"
+
+        # Create temp file and download into it using a 'with' statement for proper cleanup
+        # The 'with' statement ensures the file is closed even if errors occur
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
             temp_path = tf.name
             await file_obj.download_to_drive(temp_path)
 
-        # Now the temp file is closed and safe to use
-        filename = file.file_name if update.message.document else f"photo_{file_id}.jpg"
-        link = upload_to_drive(temp_path, testimonial_folder_id, filename)
+        try:
+            # CORRECTED: Pass the credentials to upload_to_drive
+            link = upload_to_drive(temp_path, testimonial_folder_id, filename, creds) # <--- CORRECTED LINE
 
-        # Safely append to testimonial_links
-        if 'testimonial_links' not in context.user_data:
-            context.user_data['testimonial_links'] = []
-        context.user_data['testimonial_links'].append(link)
+            # Safely append to testimonial_links
+            if 'testimonial_links' not in context.user_data:
+                context.user_data['testimonial_links'] = []
+            context.user_data['testimonial_links'].append(link)
 
-        # Now it's safe to delete the temp file
-        os.remove(temp_path)
+            await update.message.reply_text("File received. Upload more or select an option: ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
+            return TESTIMONIALS
 
-        await update.message.reply_text("File received. Upload more or select an option: ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
+        except Exception as e:
+            logger.error(f"Error uploading testimonial file {filename} to Drive: {e}", exc_info=True)
+            await update.message.reply_text("There was an error uploading your file. Please try again.")
+            return TESTIMONIALS # Stay in the same state to allow re-attempt
+
+        finally:
+            # Ensure the temporary file is always removed
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+    else:
+        # Handle unexpected input that is not text, document, or photo
+        await update.message.reply_text("Please upload a document/photo or use the buttons. የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ ", reply_markup=skip_done_markup)
         return TESTIMONIALS
-    else: 
-        # Handle unexpected input
-        await update.message.reply_text("Please upload a document/photo or use the buttons.  የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ  ", reply_markup=skip_done_markup)
-        return TESTIMONIALS
+
+
 
 async def ask_for_educational_docs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -1100,6 +1123,8 @@ async def startup_task(application: Application):
         creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_CREDENTIALS_JSON_PATH, scope)
         gc = gspread.authorize(creds)
         logger.info("gspread client authorized successfully.")
+        # Store credentials for later use by other functions
+        application.bot_data["gdrive_creds"] = creds # <--- ADD THIS LINE
 
         try:
             logger.info("Attempting to open Google Spreadsheet 'debo_registration'...")
