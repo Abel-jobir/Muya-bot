@@ -1161,11 +1161,8 @@ def main():
     # IMPORTANT: Also remove the os.remove(temp_creds_file.name) line (around line 1195)
     # as the temporary file is no longer created.
     # --- End Google Sheets Setup ---
-    
+
   
-  
-    # Remove the temporary credential file after use
-    os.remove(temp_creds_file.name)
     # --- End Google Sheets Setup ---
 
     # Register the startup task to load names
