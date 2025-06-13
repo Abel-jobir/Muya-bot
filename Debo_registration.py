@@ -21,6 +21,11 @@ user_specific_data = {}
 PROFESSIONAL_ID_COL_MAIN_SHEET = 0 # Assuming 'Professional_ID' is in column A
 PROFESSIONAL_NAME_COL_MAIN_SHEET = 2 # Assuming 'Full_Name' is in column B
 
+DEBO_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN_DEBO")
+print(f"DEBUG: Debo_registration.py is attempting to use token: '{DEBO_TOKEN}'") # <-- Use DEBO_TOKEN here
+if not DEBO_TOKEN: # <-- Add this check, using DEBO_TOKEN
+    raise ValueError("TELEGRAM_BOT_TOKEN_DEBO environment variable not set.")
+
 
 APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyEbwoX6hglK7cCES1GeVKFhtwmajvVAI1WDBfh03bsQbA3DKgkfCe_jJfH-8EZ0HUc/exec"
 print(f"DEBUG: Debo_registration.py is attempting to use token: '{TOKEN}'") # <-- ADD THIS LINE
@@ -29,13 +34,14 @@ print(f"DEBUG: Debo_registration.py is attempting to use token: '{TOKEN}'") # <-
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 try:
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    # Attempt to get the path from environment variable, otherwise fallback to local file
-    DEBO_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN_DEBO")
+    # Remove the duplicate 'scope' definition if it's there
+    # scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    # Remove the misplaced DEBO_TOKEN definition from here
+    # DEBO_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN_DEBO")
     print(f"DEBUG: GOOGLE_CREDENTIALS_JSON_PATH within script: '{GOOGLE_CREDENTIALS_JSON_PATH}'") # This is your debug line
 
     # Correct this section to ensure it uses GOOGLE_CREDENTIALS_JSON_PATH
-    if not GOOGLE_CREDENTIALS_JSON_PATH: # This should be your line 39 (or close to it)
+    if not GOOGLE_CREDENTIALS_JSON_PATH:
         raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
 
     creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_CREDENTIALS_JSON_PATH, scope)
@@ -1127,7 +1133,7 @@ async def load_professional_names_from_sheet(worksheet):
 
 def main():
     
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(DEBO_TOKEN).build()
     # --- Google Sheets Setup ---
     # This block needs to be here to initialize gspread and open the sheet
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
