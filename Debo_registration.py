@@ -21,26 +21,32 @@ user_specific_data = {}
 PROFESSIONAL_ID_COL_MAIN_SHEET = 0 # Assuming 'Professional_ID' is in column A
 PROFESSIONAL_NAME_COL_MAIN_SHEET = 2 # Assuming 'Full_Name' is in column B
 
+# Assuming 'import os' is at the very top of your file.
+
+# --- Telegram Bot Token Setup ---
+# This section should be placed very early in your script, after imports.
 DEBO_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN_DEBO")
-print(f"DEBUG: Debo_registration.py is attempting to use token: '{DEBO_TOKEN}'") # <-- Use DEBO_TOKEN here
-if not DEBO_TOKEN: # <-- Add this check, using DEBO_TOKEN
+print(f"DEBUG: Debo_registration.py is attempting to use token: '{DEBO_TOKEN}'")
+if not DEBO_TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN_DEBO environment variable not set.")
+# --- End Telegram Bot Token Setup ---
 
 
 APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyEbwoX6hglK7cCES1GeVKFhtwmajvVAI1WDBfh03bsQbA3DKgkfCe_jJfH-8EZ0HUc/exec"
-print(f"DEBUG: Debo_registration.py is attempting to use token: '{TOKEN}'") # <-- ADD THIS LINE
 
 # Google Sheets setup
+# Define scope once, outside the try block if used globally for creds
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-try:
-    # Remove the duplicate 'scope' definition if it's there
-    # scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    # Remove the misplaced DEBO_TOKEN definition from here
-    # DEBO_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN_DEBO")
-    print(f"DEBUG: GOOGLE_CREDENTIALS_JSON_PATH within script: '{GOOGLE_CREDENTIALS_JSON_PATH}'") # This is your debug line
 
-    # Correct this section to ensure it uses GOOGLE_CREDENTIALS_JSON_PATH
+# Get the Google Credentials JSON path from its dedicated environment variable
+GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+
+try:
+    # Remove duplicate 'scope' definition if it was inside this try block.
+    # The 'DEBO_TOKEN' definition and print also removed from here as they are moved above.
+
+    print(f"DEBUG: GOOGLE_CREDENTIALS_JSON_PATH within script: '{GOOGLE_CREDENTIALS_JSON_PATH}'")
+
     if not GOOGLE_CREDENTIALS_JSON_PATH:
         raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
 
@@ -50,6 +56,8 @@ try:
     logger.info("Successfully connected to Google Sheet 'debo_registration'")
 except Exception as e:
     logger.error(f"Error connecting to Google Sheets: {e}")
+
+# ... (rest of your code, including the main() function where Application is built with DEBO_TOKEN)
 
 # Add new states for editing flow
 (ASK_EDIT_FIELD, GET_NEW_VALUE, GET_NEW_LOCATION, GET_NEW_TESTIMONIALS, GET_NEW_EDUCATIONAL_DOCS) = range(10, 15) # Start from 10
