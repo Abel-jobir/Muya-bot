@@ -34,15 +34,23 @@ logger = logging.getLogger(__name__)
 logger.info(f"python-telegram-bot version: {telegram.__version__}")
 # Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds_json_str = os.environ.get("deboregist")
-if not creds_json_str:
-    raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
-with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_creds_file:
-    temp_creds_file.write(creds_json_str)
-    temp_file_path = temp_creds_file.name
-creds = ServiceAccountCredentials.from_json_keyfile_name(temp_file_path, scope)
-client = gspread.authorize(creds)
-sheet = client.open("Professionals").sheet1
+GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+try:
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    # Attempt to get the path from environment variable, otherwise fallback to local file
+    GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    print(f"DEBUG: GOOGLE_CREDENTIALS_JSON_PATH within script: '{GOOGLE_CREDENTIALS_JSON_PATH}'") # This is your debug line
+
+    # Correct this section to ensure it uses GOOGLE_CREDENTIALS_JSON_PATH
+    if not GOOGLE_CREDENTIALS_JSON_PATH: # This should be your line 39 (or close to it)
+        raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
+
+    creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_CREDENTIALS_JSON_PATH, scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("debo_registration").sheet1
+    logger.info("Successfully connected to Google Sheet 'debo_registration'")
+except Exception as e:
+    logger.error(f"Error connecting to Google Sheets: {e}")
 
 # Add new states for editing flow
 (ASK_EDIT_FIELD, GET_NEW_VALUE, GET_NEW_LOCATION, GET_NEW_TESTIMONIALS, GET_NEW_EDUCATIONAL_DOCS) = range(10, 15) # Start from 10
@@ -193,9 +201,9 @@ async def load_professional_names_from_sheet(context: ContextTypes.DEFAULT_TYPE)
         if not worksheet:
             # Re-initialize gspread client if not found (less efficient, but robust)
             scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-            creds_json_str = os.environ.get("deboregist") # Ensure this env var is correct
+            GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_creds_file:
-                temp_creds_file.write(creds_json_str)
+                temp_creds_file.write(GOOGLE_CREDENTIALS_JSON_PATH)
             creds = ServiceAccountCredentials.from_json_keyfile_name(temp_creds_file.name, scope)
             gc = gspread.authorize(creds)
             spreadsheet_id = os.environ.get("SPREADSHEET_ID_DEBO") # Ensure this env var is correct
@@ -1157,13 +1165,13 @@ def main():
     # --- Google Sheets Setup ---
     # This block needs to be here to initialize gspread and open the sheet
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds_json_str = os.environ.get("deboregist")
-    if not creds_json_str:
+    GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    if not GOOGLE_CREDENTIALS_JSON_PATH:
         raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
     
     # Use a temporary file to save credentials
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as temp_creds_file:
-        temp_creds_file.write(creds_json_str)
+        temp_creds_file.write(GOOGLE_CREDENTIALS_JSON_PATH)
     
     creds = ServiceAccountCredentials.from_json_keyfile_name(temp_creds_file.name, scope)
     gc = gspread.authorize(creds)
