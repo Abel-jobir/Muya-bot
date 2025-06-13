@@ -41,30 +41,7 @@ if not DEBO_TOKEN:
 
 APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyEbwoX6hglK7cCES1GeVKFhtwmajvVAI1WDBfh03bsQbA3DKgkfCe_jJfH-8EZ0HUc/exec"
 
-# Google Sheets setup
-# Define scope once, outside the try block if used globally for creds
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-# Get the Google Credentials JSON path from its dedicated environment variable
-GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-
-try:
-    # Remove duplicate 'scope' definition if it was inside this try block.
-    # The 'DEBO_TOKEN' definition and print also removed from here as they are moved above.
-
-    print(f"DEBUG: GOOGLE_CREDENTIALS_JSON_PATH within script: '{GOOGLE_CREDENTIALS_JSON_PATH}'")
-
-    if not GOOGLE_CREDENTIALS_JSON_PATH:
-        raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
-
-    creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_CREDENTIALS_JSON_PATH, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("debo_registration").sheet1
-    logger.info("Successfully connected to Google Sheet 'debo_registration'")
-except Exception as e:
-    logger.error(f"Error connecting to Google Sheets: {e}")
-
-# ... (rest of your code, including the main() function where Application is built with DEBO_TOKEN)
 
 # Add new states for editing flow
 (ASK_EDIT_FIELD, GET_NEW_VALUE, GET_NEW_LOCATION, GET_NEW_TESTIMONIALS, GET_NEW_EDUCATIONAL_DOCS) = range(10, 15) # Start from 10
@@ -1105,6 +1082,33 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def startup_task(application: Application):
+    # Google Sheets setup
+    # Define scope once, outside the try block if used globally for creds
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    
+    # Get the Google Credentials JSON path from its dedicated environment variable
+    GOOGLE_CREDENTIALS_JSON_PATH = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    
+    try:
+        # Remove duplicate 'scope' definition if it was inside this try block.
+        # The 'DEBO_TOKEN' definition and print also removed from here as they are moved above.
+    
+        print(f"DEBUG: GOOGLE_CREDENTIALS_JSON_PATH within script: '{GOOGLE_CREDENTIALS_JSON_PATH}'")
+    
+        if not GOOGLE_CREDENTIALS_JSON_PATH:
+            raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set.")
+    
+        creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_CREDENTIALS_JSON_PATH, scope)
+        client = gspread.authorize(creds)
+        sheet = client.open("debo_registration").sheet1
+        logger.info("Successfully connected to Google Sheet 'debo_registration'")
+    except Exception as e:
+        logger.error(f"Error connecting to Google Sheets: {e}")
+    
+    # ... (rest of your code, including the main() function where Application is built with DEBO_TOKEN)
+
+  
+    
     worksheet = application.bot_data.get("main_worksheet")
     if not worksheet:
         raise ValueError("Worksheet not loaded in bot_data.")
