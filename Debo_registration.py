@@ -23,10 +23,10 @@ PROFESSIONAL_NAME_COL_MAIN_SHEET = 2 # Assuming 'Full_Name' is in column B
 
 
 APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyEbwoX6hglK7cCES1GeVKFhtwmajvVAI1WDBfh03bsQbA3DKgkfCe_jJfH-8EZ0HUc/exec"
-TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN_DEBO")
 print(f"DEBUG: Debo_registration.py is attempting to use token: '{TOKEN}'") # <-- ADD THIS LINE
 if not TOKEN:
-    raise ValueError("TELEGRAM_BOT_TOKEN environment variable not set.")
+    raise ValueError("TELEGRAM_BOT_TOKEN_DEBO environment variable not set.")
 # Enable logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
