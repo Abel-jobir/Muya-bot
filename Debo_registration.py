@@ -97,7 +97,7 @@ skip_done_keyboard = [
 ]
 
 skip_done_markup = ReplyKeyboardMarkup(skip_done_keyboard, one_time_keyboard=True, resize_keyboard=True)
-
+logger = logging.getLogger(__name__)
 yes_no_keyboard = [
     ["Yes አዎ✅", "No አይ❌"]
 ]
@@ -106,16 +106,18 @@ yes_no_markup = ReplyKeyboardMarkup(yes_no_keyboard, one_time_keyboard=True, res
 
 
 
-# Helper functions
-def find_user_row(user_id):
+def find_user_row(user_id, worksheet_from_bot_data): # Added worksheet_from_bot_data parameter
     try:
-        records = sheet.get_all_records()
+        # Use the worksheet passed as an argument
+        records = worksheet_from_bot_data.get_all_records()
         for idx, row in enumerate(records, start=2):
             if str(row.get("User ID")) == str(user_id):
-                print(idx,row)
+                logger.info(f"User {user_id} found at row {idx}. Data: {row}") # Added logging
                 return idx, row
-    except:
+    except Exception as e: # Catch specific exception for better logging
+        logger.error(f"Error in find_user_row for user {user_id}: {e}", exc_info=True)
         return None, None
+    logger.info(f"User {user_id} not found in sheet.") # Added logging
     return None, None
 
 # Helper function to validate phone number
@@ -136,7 +138,7 @@ def is_valid_phone_number(phone_number: str) -> bool:
     return False
 
 #upload_to_drive
-def upload_to_drive(file_path, folder_id, filename,creds):
+def upload_to_drive(file_path, folder_id, filename, creds):
     drive_service = build('drive', 'v3', credentials=creds)
     file_metadata = {
         'name': filename,
@@ -144,7 +146,7 @@ def upload_to_drive(file_path, folder_id, filename,creds):
     }
     media = MediaFileUpload(file_path, resumable=True)
     file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-    file_id = file.get('id')  # fixed variable name
+    file_id = file.get('id')
     return f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
 
 # --- Sheet Update Helper ---
@@ -613,15 +615,14 @@ async def handle_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE
     if update.message.text:
         text = update.message.text.lower()
         if "skip" in text or "አሳልፍ" in text:
-            # Assuming ask_for_educational_docs exists and is defined
+            logger.info(f"User {update.effective_user.id} skipped testimonials. Proceeding to ask for educational docs.")
             return await ask_for_educational_docs(update, context)
         elif "done" in text or "ተጠናቋል" in text:
             if not context.user_data.get('testimonial_links'):
                 await update.message.reply_text("No testimonial files were uploaded. Skipping. \n ምንም አይነት የሰሯቸውን ስራዎች ማስርጃ አላስገቡም!", reply_markup=ReplyKeyboardRemove())
-            # Assuming ask_for_educational_docs exists and is defined
+            logger.info(f"User {update.effective_user.id} finished testimonials. Proceeding to ask for educational docs.")
             return await ask_for_educational_docs(update, context)
         else:
-            # Handle unexpected text input
             await update.message.reply_text("Please upload a document/photo or use the buttons. የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ", reply_markup=skip_done_markup)
             return TESTIMONIALS
 
@@ -635,39 +636,33 @@ async def handle_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         filename = file.file_name if update.message.document else f"photo_{file_id}.jpg"
 
-        # Create temp file and download into it using a 'with' statement for proper cleanup
-        # The 'with' statement ensures the file is closed even if errors occur
         with tempfile.NamedTemporaryFile(delete=False) as tf:
             temp_path = tf.name
             await file_obj.download_to_drive(temp_path)
 
         try:
-            # CORRECTED: Pass the credentials to upload_to_drive
-            link = upload_to_drive(temp_path, testimonial_folder_id, filename, creds) # <--- CORRECTED LINE
+            link = upload_to_drive(temp_path, testimonial_folder_id, filename, creds)
 
-            # Safely append to testimonial_links
             if 'testimonial_links' not in context.user_data:
                 context.user_data['testimonial_links'] = []
             context.user_data['testimonial_links'].append(link)
+            logger.info(f"Uploaded testimonial file for user {update.effective_user.id}: {link}")
 
             await update.message.reply_text("File received. Upload more or select an option: ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
             return TESTIMONIALS
 
         except Exception as e:
-            logger.error(f"Error uploading testimonial file {filename} to Drive: {e}", exc_info=True)
+            logger.error(f"Error uploading testimonial file {filename} to Drive for user {update.effective_user.id}: {e}", exc_info=True)
             await update.message.reply_text("There was an error uploading your file. Please try again.")
-            return TESTIMONIALS # Stay in the same state to allow re-attempt
+            return TESTIMONIALS
 
         finally:
-            # Ensure the temporary file is always removed
             if os.path.exists(temp_path):
                 os.remove(temp_path)
 
     else:
-        # Handle unexpected input that is not text, document, or photo
         await update.message.reply_text("Please upload a document/photo or use the buttons. የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ ", reply_markup=skip_done_markup)
         return TESTIMONIALS
-
 
 
 async def ask_for_educational_docs(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -676,6 +671,7 @@ async def ask_for_educational_docs(update: Update, context: ContextTypes.DEFAULT
          reply_markup=skip_done_markup # Show keyboard immediately
     )
     context.user_data['education_links'] = []
+    logger.info(f"User {update.effective_user.id} asked for educational docs. Initializing education_links.")
     return EDUCATIONAL_DOCS
 
 async def handle_educational_docs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -689,17 +685,13 @@ async def handle_educational_docs(update: Update, context: ContextTypes.DEFAULT_
     if update.message.text:
         text = update.message.text.lower()
         if "skip" in text or "አሳልፍ" in text:
-            await update.message.reply_text("Skipping educational documents. Thank you for registering! \n የትምህርት ማስረጃዎችዎን ማስገባት ስላልፈለጉ ተዘሏል! ስለተመዘገቡ እናመሰግናለን።", reply_markup=ReplyKeyboardRemove())
-            # Assuming a function to finalize registration, e.g., finalize_registration
-            # return await finalize_registration(update, context)
-            return ConversationHandler.END # Example: End the conversation
+            logger.info(f"User {update.effective_user.id} skipped educational documents. Calling finish_registration.")
+            return await finish_registration(update, context) # <--- CRITICAL CHANGE: Call finish_registration
         elif "done" in text or "ተጠናቋል" in text:
             if not context.user_data.get('educational_links'):
-                await update.message.reply_text("No educational files were uploaded. \n ምንም አይነት የትምህርት ማስረጃ አላስገቡም።", reply_markup=ReplyKeyboardRemove())
-            await update.message.reply_text("Thank you for registering! \n ስለተመዘገቡ እናመሰግናለን።", reply_markup=ReplyKeyboardRemove())
-            # Assuming a function to finalize registration, e.g., finalize_registration
-            # return await finalize_registration(update, context)
-            return ConversationHandler.END # Example: End the conversation
+                await update.message.reply_text("No educational files were uploaded. Skipping. ምንም አይነት የሰሯቸውን ስራዎች ማስርጃ አላስገቡም!", reply_markup=ReplyKeyboardRemove())
+            logger.info(f"User {update.effective_user.id} finished educational documents. Calling finish_registration.")
+            return await finish_registration(update, context) # <--- CRITICAL CHANGE: Call finish_registration
         else:
             await update.message.reply_text("Please upload a document/photo or use the buttons. የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ ", reply_markup=skip_done_markup)
             return EDUCATIONAL_DOCS
@@ -718,20 +710,20 @@ async def handle_educational_docs(update: Update, context: ContextTypes.DEFAULT_
             await file_obj.download_to_drive(temp_path)
 
         try:
-            # CORRECTED: Pass the credentials to upload_to_drive
-            link = upload_to_drive(temp_path, education_folder_id, filename, creds) # <--- CORRECTED LINE
+            link = upload_to_drive(temp_path, education_folder_id, filename, creds)
 
             if 'educational_links' not in context.user_data:
                 context.user_data['educational_links'] = []
             context.user_data['educational_links'].append(link)
+            logger.info(f"Uploaded educational file for user {update.effective_user.id}: {link}")
 
             await update.message.reply_text("File received. Upload more or select an option: ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
             return EDUCATIONAL_DOCS
 
         except Exception as e:
-            logger.error(f"Error uploading educational file {filename} to Drive: {e}", exc_info=True)
+            logger.error(f"Error uploading educational file {filename} to Drive for user {update.effective_user.id}: {e}", exc_info=True)
             await update.message.reply_text("There was an error uploading your file. Please try again.")
-            return EDUCATIONAL_DOCS # Stay in the same state to allow re-attempt
+            return EDUCATIONAL_DOCS
 
         finally:
             if os.path.exists(temp_path):
@@ -781,8 +773,8 @@ async def finish_registration(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # --- Step 3: Attempt to write data to Google Sheet ---
     try:
-        # Try to find an existing row first
-        row_idx, existing_row_data = find_user_row(user_id) # Ensure find_user_row is globally accessible or passed
+        # Pass the retrieved worksheet to find_user_row
+        row_idx, existing_row_data = find_user_row(user_id, worksheet) # <--- MODIFIED: Pass worksheet
 
         if row_idx:
             logger.info(f"User {user_id} found at row {row_idx}. Attempting to UPDATE existing row.")
