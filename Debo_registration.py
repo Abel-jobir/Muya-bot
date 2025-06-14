@@ -543,7 +543,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    _, existing = find_user_row(user_id)
+    worksheet = context.application.bot_data.get("main_worksheet")
+    if not worksheet:
+        logger.critical("main_worksheet not available in register function.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
+        return ConversationHandler.END
+    _, existing = find_user_row(user_id, worksheet)
     if existing:
         await update.message.reply_text("ℹ️You are already registered. / ደቦ ላይ ተመዝግበዋል", reply_markup=main_menu_markup)
         return ConversationHandler.END
@@ -852,7 +857,12 @@ async def send_manual_rating_command(update: Update, context: ContextTypes.DEFAU
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    _, row = find_user_row(user_id)
+    worksheet = context.application.bot_data.get("main_worksheet")
+    if not worksheet:
+        logger.critical("main_worksheet not available in profile function.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
+        return ConversationHandler.END
+    _, row = find_user_row(user_id, worksheet)
     if not row:
         await update.message.reply_text("You are not registered. please click regiser. / አልተመዘገቡም. እባክዎ ምዝገባ የሚለውን ተጭነው ይመዝገቡ", reply_markup=main_menu_markup)
         return
@@ -872,8 +882,12 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def editprofile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Starts the edit profile conversation."""
-    user_id = update.message.from_user.id
-    row_idx, row_data = find_user_row(user_id)
+    worksheet = context.application.bot_data.get("main_worksheet")
+    if not worksheet:
+        logger.critical("main_worksheet not available in editprofile function.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
+        return ConversationHandler.END
+    row_idx, row_data = find_user_row(user_id, worksheet)
 
     if not row_data:
         await update.message.reply_text("You are not registered. Please use /register. / ከዚህ በፊት አልተመዘገቡም እባክዎን /ምዝገባን ተጭነው ይመዝገቡ።", reply_markup=main_menu_markup)
@@ -1071,7 +1085,12 @@ async def handle_new_files(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def deleteprofile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    row_idx, row = find_user_row(user_id)
+    worksheet = context.application.bot_data.get("main_worksheet")
+    if not worksheet:
+        logger.critical("main_worksheet not available in deleteprofile function.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
+        return ConversationHandler.END
+    row_idx, row = find_user_row(user_id, worksheet)
     if not row:
         await update.message.reply_text("You are not registered. / አልተመዘገቡም", reply_markup=main_menu_markup)
         return ConversationHandler.END
@@ -1094,7 +1113,12 @@ async def confirm_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    row_idx, row = find_user_row(user_id)
+    worksheet = context.application.bot_data.get("main_worksheet")
+    if not worksheet:
+        logger.critical("main_worksheet not available in comment function.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
+        return ConversationHandler.END
+    row_idx, row = find_user_row(user_id, worksheet)
     if not row:
         await update.message.reply_text("You are not registered. / አልተመዘገቡም", reply_markup=main_menu_markup)
         return ConversationHandler.END
