@@ -106,18 +106,26 @@ yes_no_markup = ReplyKeyboardMarkup(yes_no_keyboard, one_time_keyboard=True, res
 
 
 
-def find_user_row(user_id, worksheet_from_bot_data): # Added worksheet_from_bot_data parameter
+def find_user_row(user_id, worksheet_from_bot_data): # IMPORTANT: Added worksheet_from_bot_data parameter
+    """
+    Finds the row index and data for a given user_id in the specified worksheet.
+    Args:
+        user_id (int): The Telegram user ID.
+        worksheet_from_bot_data: The gspread worksheet object.
+    Returns:
+        tuple: (row_index, row_data) or (None, None) if not found/error.
+    """
     try:
-        # Use the worksheet passed as an argument
         records = worksheet_from_bot_data.get_all_records()
+        # enumerate starts from 0, but sheet rows are 1-based, and we skip header (row 1), so start=2
         for idx, row in enumerate(records, start=2):
             if str(row.get("User ID")) == str(user_id):
-                logger.info(f"User {user_id} found at row {idx}. Data: {row}") # Added logging
+                logger.info(f"User {user_id} found in sheet at row {idx}. Data: {row.get('Full_Name', 'N/A')}")
                 return idx, row
-    except Exception as e: # Catch specific exception for better logging
+    except Exception as e:
         logger.error(f"Error in find_user_row for user {user_id}: {e}", exc_info=True)
         return None, None
-    logger.info(f"User {user_id} not found in sheet.") # Added logging
+    logger.info(f"User {user_id} not found in sheet.")
     return None, None
 
 # Helper function to validate phone number
@@ -543,12 +551,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
+    # IMPORTANT: Retrieve worksheet from bot_data and pass it
     worksheet = context.application.bot_data.get("main_worksheet")
     if not worksheet:
-        logger.critical("main_worksheet not available in register function.")
-        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
+        logger.critical(f"main_worksheet not available in register function for user {user_id}.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.", reply_markup=main_menu_markup)
         return ConversationHandler.END
-    _, existing = find_user_row(user_id, worksheet)
+
+    _, existing = find_user_row(user_id, worksheet) # <--- MODIFIED
     if existing:
         await update.message.reply_text("ℹ️You are already registered. / ደቦ ላይ ተመዝግበዋል", reply_markup=main_menu_markup)
         return ConversationHandler.END
@@ -857,12 +867,13 @@ async def send_manual_rating_command(update: Update, context: ContextTypes.DEFAU
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    worksheet = context.application.bot_data.get("main_worksheet")
+    worksheet = context.application.bot_data.get("main_worksheet") # <--- MODIFIED: Get worksheet
     if not worksheet:
-        logger.critical("main_worksheet not available in profile function.")
-        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
-        return ConversationHandler.END
-    _, row = find_user_row(user_id, worksheet)
+        logger.critical(f"main_worksheet not available in profile function for user {user_id}.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.", reply_markup=main_menu_markup)
+        return
+
+    _, row = find_user_row(user_id, worksheet) # <--- MODIFIED
     if not row:
         await update.message.reply_text("You are not registered. please click regiser. / አልተመዘገቡም. እባክዎ ምዝገባ የሚለውን ተጭነው ይመዝገቡ", reply_markup=main_menu_markup)
         return
@@ -874,20 +885,24 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Location: {row['LOCATION']}"
         )
         await update.message.reply_text(text, reply_markup=main_menu_markup)
-    except KeyError:
+    except KeyError as e:
+        logger.error(f"KeyError in profile for user {user_id}: {e}. Row data: {row}", exc_info=True)
         await update.message.reply_text("Your profile seems incomplete. Please re-register. / ምዝገባዎ አ እባክዎ ምዝገባ የሚለውን ተጭነው እንደገና ይመዝገቡ።", reply_markup=main_menu_markup)
+
 
 
 # --- NEW EDIT PROFILE FLOW ---
 
 async def editprofile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Starts the edit profile conversation."""
-    worksheet = context.application.bot_data.get("main_worksheet")
+    user_id = update.message.from_user.id
+    worksheet = context.application.bot_data.get("main_worksheet") # <--- MODIFIED: Get worksheet
     if not worksheet:
-        logger.critical("main_worksheet not available in editprofile function.")
-        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
+        logger.critical(f"main_worksheet not available in editprofile function for user {user_id}.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.", reply_markup=main_menu_markup)
         return ConversationHandler.END
-    row_idx, row_data = find_user_row(user_id, worksheet)
+
+    row_idx, row_data = find_user_row(user_id, worksheet) # <--- MODIFIED
 
     if not row_data:
         await update.message.reply_text("You are not registered. Please use /register. / ከዚህ በፊት አልተመዘገቡም እባክዎን /ምዝገባን ተጭነው ይመዝገቡ።", reply_markup=main_menu_markup)
@@ -907,7 +922,6 @@ async def editprofile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ Cancel / አቋርጥ", callback_data="edit_cancel")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text("Which information would you like to update? / የትኛውን መረጃዎን ማስተካከል ይፈልጋሉ?", reply_markup=reply_markup)
     return ASK_EDIT_FIELD
 
@@ -919,39 +933,32 @@ async def ask_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "edit_cancel":
         await query.edit_message_text("Edit cancelled. / ማስተካክየ አቋርጠዋል።", reply_markup=None)
         context.user_data.clear()
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Main Menu:", reply_markup=main_menu_markup) # Send main menu again
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Main Menu:", reply_markup=main_menu_markup)
         return ConversationHandler.END
 
     edit_option = EDIT_OPTIONS.get(query.data)
     if not edit_option:
         await query.edit_message_text("Invalid option selected. Please try again። / የተሳሳተ አማርጭ መርጠዋል። እንደገና ይሞክሩ።")
         context.user_data.clear()
-        await context.bot.send_message(chat_id=query.message.chat_id, text="Main Menu:", reply_markup=main_menu_markup) # Send main menu again
+        await context.bot.send_message(chat_id=query.message.chat_id, text="Main Menu:", reply_markup=main_menu_markup)
         return ConversationHandler.END
 
     context.user_data['editing_field'] = edit_option['name']
-    # Corrected: Use 'next_state' as defined in EDIT_OPTIONS
-    context.user_data['next_edit_state'] = edit_option['next_state'] # Store for potential reuse
+    context.user_data['next_edit_state'] = edit_option['next_state']
 
-    # Remove the inline keyboard from the previous message
     await query.edit_message_reply_markup(reply_markup=None)
 
-    # Send the prompt for the specific field
-    reply_markup_to_send = ReplyKeyboardRemove() # Default remove keyboard
+    reply_markup_to_send = ReplyKeyboardRemove()
     if edit_option['name'] == "Location":
-         location_button = [[KeyboardButton("Share Location / አካባቢዎን ያጋሩ ", request_location=True)], [KeyboardButton("Skip / አሳልፍ")]]
-         reply_markup_to_send=ReplyKeyboardMarkup(location_button, one_time_keyboard=True, resize_keyboard=True)
+        location_button = [[KeyboardButton("Share Location / አካባቢዎን ያጋሩ ", request_location=True)], [KeyboardButton("Skip / አሳልፍ")]]
+        reply_markup_to_send=ReplyKeyboardMarkup(location_button, one_time_keyboard=True, resize_keyboard=True)
     elif edit_option['name'] in ["Testimonials", "Educational Docs"]:
-         # Prepare for file uploads and show skip/done keyboard
-         context.user_data['new_file_links'] = []
-         context.user_data['file_type_being_edited'] = edit_option['name'] # Track which file type
-         reply_markup_to_send = skip_done_markup # Show skip/done keyboard
-
+        context.user_data['new_file_links'] = []
+        context.user_data['file_type_being_edited'] = edit_option['name']
+        reply_markup_to_send = skip_done_markup
 
     await query.message.reply_text(edit_option['prompt'], reply_markup=reply_markup_to_send)
-
-    # Corrected: Use 'next_state' as defined in EDIT_OPTIONS
-    return edit_option['next_state'] # Use the stored next state
+    return edit_option['next_state']
 
 async def get_new_text_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles text input for updated fields."""
@@ -1013,40 +1020,33 @@ async def get_new_location_value(update: Update, context: ContextTypes.DEFAULT_T
     return ConversationHandler.END
 
 async def handle_new_files(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles file uploads (testimonials/educational docs) during edit."""
-    field_name = context.user_data.get('file_type_being_edited') # "Testimonials" or "Educational Docs"
+    field_name = context.user_data.get('file_type_being_edited')
 
     if not field_name:
         await update.message.reply_text("An error occurred. Please start the edit process again.", reply_markup=main_menu_markup)
         context.user_data.clear()
         return ConversationHandler.END
 
-    # Check for 'done' or 'skip' command from buttons
     if update.message.text:
         text = update.message.text.lower()
         if "done" in text or "skip" in text or "ተጠናቋል" in text or "አሳልፍ" in text:
-            # Combine collected links
             final_links = ", ".join(context.user_data.get('new_file_links', []))
             if ("skip" in text or "አሳልፍ" in text) and not final_links:
                 final_links = "Skipped"
             elif ("done" in text or "ተጠናቋል" in text) and not final_links:
-                 await update.message.reply_text(f"No new files uploaded. Keeping existing {field_name.lower()}.", reply_markup=main_menu_markup)
-                 context.user_data.clear()
-                 return ConversationHandler.END
-
+                await update.message.reply_text(f"No new files uploaded. Keeping existing {field_name.lower()}.", reply_markup=main_menu_markup)
+                context.user_data.clear()
+                return ConversationHandler.END
 
             success = await update_sheet_cell(context, field_name, final_links)
             if success:
-                 await update.message.reply_text(f"✅ Your {field_name.lower()} have been updated.", reply_markup=main_menu_markup)
+                await update.message.reply_text(f"✅ Your {field_name.lower()} have been updated.", reply_markup=main_menu_markup)
             else:
-                 await update.message.reply_text(f"❌ Error saving your {field_name.lower()}. Please try again.", reply_markup=main_menu_markup)
-
+                await update.message.reply_text(f"❌ Error saving your {field_name.lower()}. Please try again.", reply_markup=main_menu_markup)
             context.user_data.clear()
             return ConversationHandler.END
 
-    # Process uploaded file
     if update.message.document or update.message.photo:
-        # Define folder IDs (ensure these are correct)
         testimonial_folder_id = "1TMehhfN9tExqoaHIYya-B-SCcFeBTj2y"
         education_folder_id = "1i9a2G7EXByrY9LxXtv4yY-CMExDWI7hM"
 
@@ -1056,13 +1056,16 @@ async def handle_new_files(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_id = file.file_id
         try:
             file_obj = await context.bot.get_file(file_id)
-
             with tempfile.NamedTemporaryFile(delete=False) as tf:
                 temp_path = tf.name
                 await file_obj.download_to_drive(temp_path)
 
             filename = getattr(file, 'file_name', None) or f"photo_{file_id}.jpg"
-            link = upload_to_drive(temp_path, folder_id, filename)
+            creds = context.application.bot_data.get("gdrive_creds") # Get creds for upload_to_drive
+            if not creds:
+                raise ValueError("Google Drive credentials not found for file upload.")
+
+            link = upload_to_drive(temp_path, folder_id, filename, creds)
 
             if 'new_file_links' not in context.user_data:
                 context.user_data['new_file_links'] = []
@@ -1074,71 +1077,92 @@ async def handle_new_files(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return context.user_data['next_edit_state']
 
         except Exception as e:
-            logger.error(f"Error processing file upload during edit: {e}")
+            logger.error(f"Error processing file upload during edit: {e}", exc_info=True)
             await update.message.reply_text("Sorry, there was an error processing your file. Please try uploading again or use the buttons.", reply_markup=skip_done_markup)
             return context.user_data['next_edit_state']
     else:
-        # Handle unexpected input
         await update.message.reply_text("Please upload a document/photo or use the buttons.", reply_markup=skip_done_markup)
         return context.user_data['next_edit_state']
 
 
 async def deleteprofile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    worksheet = context.application.bot_data.get("main_worksheet")
+    worksheet = context.application.bot_data.get("main_worksheet") # <--- MODIFIED: Get worksheet
     if not worksheet:
-        logger.critical("main_worksheet not available in deleteprofile function.")
-        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
+        logger.critical(f"main_worksheet not available in deleteprofile function for user {user_id}.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.", reply_markup=main_menu_markup)
         return ConversationHandler.END
-    row_idx, row = find_user_row(user_id, worksheet)
+
+    row_idx, row = find_user_row(user_id, worksheet) # <--- MODIFIED
     if not row:
         await update.message.reply_text("You are not registered. / አልተመዘገቡም", reply_markup=main_menu_markup)
         return ConversationHandler.END
-    # Use yes/no keyboard
     await update.message.reply_text("Are you sure you want to delete your profile? / መርጃዎን ለማጥፋት እርግጠኛ ነዎት?", reply_markup=yes_no_markup)
     context.user_data['row_idx'] = row_idx
     return CONFIRM_DELETE
 
+
+
 async def confirm_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Check for 'Yes' button text (case-insensitive, considering both English and Amharic button text)
     if update.message.text and ("yes" in update.message.text.lower() or "አዎ" in update.message.text.lower()):
+        row_idx = context.user_data.get('row_idx')
+        user_id = update.message.from_user.id
+        worksheet = context.application.bot_data.get("main_worksheet") # <--- MODIFIED: Get worksheet
+
+        if not worksheet:
+            logger.critical(f"main_worksheet not available for delete operation for user {user_id}.")
+            await update.message.reply_text("Error: Database connection not ready. Please try again later.", reply_markup=main_menu_markup)
+            return ConversationHandler.END
+
         try:
-            sheet.delete_rows(context.user_data['row_idx'])
-            await update.message.reply_text("Profile deleted. / መረጃዎ ተደምስሷል", reply_markup=main_menu_markup) # Add main menu markup
-        except:
-            await update.message.reply_text("Service is temporarily unavailable. Please try again later.", reply_markup=main_menu_markup) # Add main menu markup
-    else: # Assume any other text (including 'No' button text) cancels
-        await update.message.reply_text("Deletion cancelled. / ድምሰሳው ትቋርጧል", reply_markup=main_menu_markup) # Add main menu markup
+            worksheet.delete_rows(row_idx)
+            logger.info(f"Successfully deleted row {row_idx} for user {user_id}.")
+            await update.message.reply_text("Profile deleted. / መረጃዎ ተደምስሷል", reply_markup=main_menu_markup)
+        except Exception as e: # <--- MODIFIED: Catch specific exception and log it
+            logger.error(f"Failed to delete profile for user {user_id} at row {row_idx}: {e}", exc_info=True)
+            await update.message.reply_text(f"Service is temporarily unavailable. Please try again later. Error: {e}", reply_markup=main_menu_markup) # Show specific error
+    else:
+        await update.message.reply_text("Deletion cancelled. / ድምሰሳው ትቋርጧል", reply_markup=main_menu_markup)
+    context.user_data.clear() # Clear user_data regardless of success/failure for deletion
     return ConversationHandler.END
 
 async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    worksheet = context.application.bot_data.get("main_worksheet")
+    worksheet = context.application.bot_data.get("main_worksheet") # <--- MODIFIED: Get worksheet
     if not worksheet:
-        logger.critical("main_worksheet not available in comment function.")
-        await update.message.reply_text("Error: Database connection not ready. Please try again later.")
+        logger.critical(f"main_worksheet not available in comment function for user {user_id}.")
+        await update.message.reply_text("Error: Database connection not ready. Please try again later.", reply_markup=main_menu_markup)
         return ConversationHandler.END
-    row_idx, row = find_user_row(user_id, worksheet)
+
+    row_idx, row = find_user_row(user_id, worksheet) # <--- MODIFIED
     if not row:
         await update.message.reply_text("You are not registered. / አልተመዘገቡም", reply_markup=main_menu_markup)
         return ConversationHandler.END
-    await update.message.reply_text("Send your comment:  / አስተያየቶን ያላኩ፡", reply_markup=ReplyKeyboardRemove()) # Remove keyboard for free text input
+    await update.message.reply_text("Send your comment:  / አስተያየቶን ያላኩ፡", reply_markup=ReplyKeyboardRemove())
     context.user_data['row_idx'] = row_idx
     return COMMENT
+
 
 async def save_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     comment_text = update.message.text
     row_idx = context.user_data.get('row_idx')
-    if not row_idx:
+    user_id = update.message.from_user.id
+    worksheet = context.application.bot_data.get("main_worksheet") # <--- MODIFIED: Get worksheet
+
+    if not worksheet or not row_idx:
+        logger.critical(f"worksheet or row_idx not available for save_comment for user {user_id}.")
         await update.message.reply_text("Could not locate your registration. ምዝገባዎን ማገኘት አልቻልንም", reply_markup=main_menu_markup)
         return ConversationHandler.END
-    try:
-        sheet.update(range_name=f'I{row_idx}', values=[[comment_text]])
-        await update.message.reply_text("Comment saved.", reply_markup=main_menu_markup)
-    except:
-        await update.message.reply_text("Service is temporarily unavailable. Please try again later.", reply_markup=main_menu_markup)
-    return ConversationHandler.END
 
+    try:
+        worksheet.update(range_name=f'I{row_idx}', values=[[comment_text]])
+        logger.info(f"Comment saved for user {user_id} at row {row_idx}.")
+        await update.message.reply_text("Comment saved.", reply_markup=main_menu_markup)
+    except Exception as e: # <--- MODIFIED: Catch specific exception and log it
+        logger.error(f"Failed to save comment for user {user_id} at row {row_idx}: {e}", exc_info=True)
+        await update.message.reply_text(f"Service is temporarily unavailable. Please try again later. Error: {e}", reply_markup=main_menu_markup)
+    context.user_data.clear() # Clear user_data after comment is saved/failed
+    return ConversationHandler.END
 
 
 # --- NEW: Global Error Handler ---
@@ -1379,7 +1403,6 @@ def main():
     app.add_handler(delete_conv)
     app.add_handler(comment_conv)
     app.add_handler(CommandHandler("cancel", cancel))
-    app.add_handler(CommandHandler("editprofile", editprofile))
     app.add_handler(CommandHandler("profile", profile))
     app.add_handler(CallbackQueryHandler(handle_rating_callback, pattern='^rate_'))
     app.add_handler(CallbackQueryHandler(handle_initial_feedback_callback, pattern='^feedback_|^followup_')) # <--- ADD THIS LINE
@@ -1387,6 +1410,5 @@ def main():
     YOUR_ADMIN_TELEGRAM_ID =401674551 # <--- REPLACE WITH YOUR TELEGRAM USER ID
     app.add_handler(CommandHandler("request_feedback", request_feedback_command, filters=filters.User(401674551))) # <--- ADD THIS LINE
     app.run_polling()
-    echo("hiiiii")
 if __name__ == '__main__':
     main()
