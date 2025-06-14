@@ -741,57 +741,87 @@ async def handle_educational_docs(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text("Please upload a document/photo or use the buttons. የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። አስገብተው ከጨረሱ skip / አሳልፍ ይጫኑይጫኑ ", reply_markup=skip_done_markup)
         return EDUCATIONAL_DOCS
 
-    
 async def finish_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
+    logger.info(f"finish_registration initiated for user ID: {user_id}")
 
-    # Join testimonial and educational links into separate strings
+    # --- Step 1: Retrieve the worksheet object ---
+    # This is CRUCIAL. The 'sheet' global might not be correctly initialized or accessible.
+    # Always get the worksheet from bot_data if it was stored in startup_task.
+    worksheet = context.application.bot_data.get("main_worksheet")
+    if not worksheet:
+        logger.critical(f"ERROR: Google Sheet worksheet 'main_worksheet' not found in bot_data for user {user_id}. Bot startup might have failed.")
+        await update.message.reply_text(
+            "❌ System Error: Could not access the registration sheet. Please contact support. / ስህተት: ምዝገባው አልተሳካም። እባክዎ ድጋፍ ያግኙ።",
+            reply_markup=main_menu_markup
+        )
+        return ConversationHandler.END
+
+    logger.info(f"Worksheet '{worksheet.title}' successfully retrieved from bot_data.")
+
+    # --- Step 2: Prepare the data to be written ---
     testimonial_links = ", ".join(context.user_data.get('testimonial_links', []))
     education_links = ", ".join(context.user_data.get('educational_links', []))
 
-    # Prepare the data to be written to the Google Sheet
+    # This 'data' list order MUST match your Google Sheet's columns from A to K
     data = [
-        str(user_id),  # User ID
-        context.user_data.get('username', ''),  # Username
-        context.user_data.get('full_name', ''),  # Full Name (changed from 'Full_Name')
-        context.user_data.get('PROFESSION', ''),  # Profession
-        context.user_data.get('phone', ''),  # Phone (changed from 'PHONE')
-        context.user_data.get('location', ''),  # Location
-        context.user_data.get('region_city_woreda', ''),  # Region/City/Woreda
-        "",  # CONFIRM_DELETE column (empty for now)
-        "",  # COMMENT column (empty for now)
-        testimonial_links,  # TESTIMONIALS column
-        education_links  # EDUCATIONAL_DOCS column
+        str(user_id),                               # Column A: User ID
+        context.user_data.get('username', ''),      # Column B: Username
+        context.user_data.get('full_name', ''),     # Column C: Full Name
+        context.user_data.get('PROFESSION', ''),    # Column D: Profession
+        context.user_data.get('phone', ''),         # Column E: Phone
+        context.user_data.get('location', ''),      # Column F: Location
+        context.user_data.get('region_city_woreda', ''), # Column G: Region/City/Woreda
+        "",                                         # Column H: Placeholder (e.g., CONFIRM_DELETE, if used)
+        "",                                         # Column I: Placeholder (e.g., COMMENT, if used)
+        testimonial_links,                          # Column J: Testimonials
+        education_links                             # Column K: Educational Docs
     ]
-    print("DATA TO WRITE:", data)
+    logger.info(f"Data prepared for writing to sheet for user {user_id}: {data}")
+
+    # --- Step 3: Attempt to write data to Google Sheet ---
     try:
-        worksheet = context.application.bot_data.get("main_worksheet")
-        if not worksheet:
-             logger.error(f"Google Sheet worksheet not available in bot_data for user {user_id}.")
-             await update.message.reply_text("❌ Error: Could not connect to the database. Please try again later.", reply_markup=main_menu_markup)
-             return ConversationHandler.END
-        # Update the row if it exists, otherwise append a new row
-        # Need to find the row again here in case the sheet changed since registration started
-        # This part might need refinement if concurrent registrations are expected.
-        # For simplicity, let's assume find_user_row is reliable here after gathering all data.
-        row_idx, _ = find_user_row(user_id)
+        # Try to find an existing row first
+        row_idx, existing_row_data = find_user_row(user_id) # Ensure find_user_row is globally accessible or passed
+
         if row_idx:
-             worksheet.update(f"A{row_idx}:L{row_idx}", [data]) # Use found row_idx
+            logger.info(f"User {user_id} found at row {row_idx}. Attempting to UPDATE existing row.")
+            # Update the entire row from A to K with the new data
+            worksheet.update(f"A{row_idx}:K{row_idx}", [data])
+            logger.info(f"Successfully UPDATED row {row_idx} for user {user_id}.")
         else:
+            logger.info(f"User {user_id} not found. Attempting to APPEND new row.")
+            # Append a new row with the collected data
             worksheet.append_row(data)
+            logger.info(f"Successfully APPENDED new row for user {user_id}.")
 
+        # --- Step 4: Confirm success to the user and clear data ---
+        await update.message.reply_text(
+            "✅Congradulations! Registration complete! from now on people who needs your profession will get you easily.\n እንኳን ደስ አለዎት ምዝገባዎን አጠናቀዋል። \n ከዚህ በኋላ ማንኛውም የርስዎን ሙያ የሚፈልግ ሰው በቀላሉ ያገኝዎታል!!!",
+            reply_markup=main_menu_markup
+        )
+        logger.info(f"Registration successfully completed and confirmed for user {user_id}.")
 
-        # Notify the user of successful registration
-        await update.message.reply_text("✅Congradulations! Registration complete! from now on people who needs your profession will get you easily.\n እንኳን ደስ አለዎት ምዝገባዎን አጠናቀዋል። \n ከዚህ በኋላ ማንኛውም የርስዎን ሙያ የሚፈልግ ሰው በቀላሉ ያገኝዎታል!!!", reply_markup=main_menu_markup) # Add main menu markup
-
-        # Clear user data to avoid reuse
+        # Clear user data to avoid storing stale information
         context.user_data.clear()
 
+    except gspread.exceptions.APIError as api_e:
+        # This catches errors directly from the Google Sheets API (e.g., permission denied, invalid range)
+        logger.error(f"Google Sheets API Error while saving data for user {user_id}: {api_e.response.text}", exc_info=True)
+        await update.message.reply_text(
+            f"❌ Error saving your data to Google Sheet due to API issue. Please contact support. / በመረጃ ማስቀመጥ ላይ የኤፒአይ ስህተት ተከስቷል። እባክዎ ድጋፍ ያግኙ።",
+            reply_markup=main_menu_markup
+        )
     except Exception as e:
-        # Notify the user of any errors
-        await update.message.reply_text(f"❌ Error saving your data: /መረጃዎን መመዝገብ አልተቻለም። እባክዎ ትንሽ ቆይተው ይሞክሩ። {e}", reply_markup=main_menu_markup) # Add main menu markup
+        # Catch any other unexpected errors during the saving process
+        logger.error(f"General Error saving data for user {user_id}: {e}", exc_info=True)
+        await update.message.reply_text(
+            f"❌ Error saving your data: /መረጃዎን መመዝገብ አልተቻለም። እባክዎ ትንሽ ቆይተው ይሞክሩ። {e}",
+            reply_markup=main_menu_markup
+        )
 
     return ConversationHandler.END
+
 
 
 # CODE.txt (near your other CommandHandler functions)
