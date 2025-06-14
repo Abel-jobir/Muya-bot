@@ -112,6 +112,7 @@ def find_user_row(user_id):
         records = sheet.get_all_records()
         for idx, row in enumerate(records, start=2):
             if str(row.get("User ID")) == str(user_id):
+                print(idx,row)
                 return idx, row
     except:
         return None, None
@@ -764,15 +765,18 @@ async def finish_registration(update: Update, context: ContextTypes.DEFAULT_TYPE
     ]
     print("DATA TO WRITE:", data)
     try:
-        worksheet = sheet  # Use the global `sheet` variable
-
+        worksheet = context.application.bot_data.get("main_worksheet")
+        if not worksheet:
+             logger.error(f"Google Sheet worksheet not available in bot_data for user {user_id}.")
+             await update.message.reply_text("❌ Error: Could not connect to the database. Please try again later.", reply_markup=main_menu_markup)
+             return ConversationHandler.END
         # Update the row if it exists, otherwise append a new row
         # Need to find the row again here in case the sheet changed since registration started
         # This part might need refinement if concurrent registrations are expected.
         # For simplicity, let's assume find_user_row is reliable here after gathering all data.
         row_idx, _ = find_user_row(user_id)
         if row_idx:
-             worksheet.update(f"A{row_idx}:K{row_idx}", [data]) # Use found row_idx
+             worksheet.update(f"A{row_idx}:L{row_idx}", [data]) # Use found row_idx
         else:
             worksheet.append_row(data)
 
