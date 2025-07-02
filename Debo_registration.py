@@ -548,9 +548,26 @@ async def greet_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "ስለአሰራራችን የበለጠ ለማውቅ ወይም የትኛውም ጥይቄ ካልዎት ይህንን ይጫኑይጫኑ", reply_markup=main_menu_markup)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("\n🎉 Welcome to Muya Bot where you make extra money with your profession! \n🎉 እንኳን በሙያዎ ተጨማሪ ገንዘብ ወደሚያገኙበት ሙያ ቦት በሰላም መጡ \n \n🌟 this bot is used to registor any Ethiopian Professionals who are interested to find new job opportunities from thier nighbour to thier city. \n \n ⚠️some of the information you provide to this bot will be given to people that want your contact to make you work for them \n  \n \n🌟ይህ ቦት የሙያ ባለቤት የሆኑ ማንኛውም  ኢትይጵያውያንን የምንመዘግብበትና ባቅርያብያቸው ያሉ የስራ እድሎችን እንዲያገኙ ከባለሙያ ፈላጊዎች ጋር በቀላሉ የምናገናኝበት ነው። \n " \
-        " \n⚠️ በዚህ ቦት ላይ የሚያጋሯቸው አንድ አንድ መርጃዎችዎ ስራ ሊያሰሯችሁ ለሚፈልጉ ሰዎች ይጋራሉ።  \n  \nplease use the below menu to continue \nለመቀጠል ከስር ካሉት አማራጮች አንዱን ይጫኑ።
-        \n \n ስለአሰራራችን የበለጠ ለማውቅ ወይም የትኛውም ጥይቄ ካልዎት ይህንን ይጫኑ", reply_markup=main_menu_markup)
+    # Combine the message into a single string for easier formatting.
+    # Ensure all parts are concatenated correctly.
+    message_text = (
+        "🎉 Welcome to Muya Bot where you make extra money with your profession! \n"
+        "🎉 እንኳን በሙያዎ ተጨማሪ ገንዘብ ወደሚያገኙበት ሙያ ቦት በሰላም መጡ \n \n"
+        "🌟 this bot is used to registor any Ethiopian Professionals who are interested to find new job opportunities from thier nighbour to thier city. \n \n"
+        "⚠️some of the information you provide to this bot will be given to people that want your contact to make you work for them \n \n"
+        "🌟ይህ ቦት የሙያ ባለቤት የሆኑ ማንኛውም  ኢትይጵያውያንን የምንመዘግብበትና ባቅርያብያቸው ያሉ የስራ እድሎችን እንዲያገኙ ከባለሙያ ፈላጊዎች ጋር በቀላሉ የምናገናኝበት ነው። \n "
+        "\n⚠️ በዚህ ቦት ላይ የሚያጋሯቸው አንድ አንድ መርጃዎችዎ ስራ ሊያሰሯችሁ ለሚፈልጉ ሰዎች ይጋራሉ።  \n \n"
+        # The text below is enclosed in *asterisks* for bolding in MarkdownV2
+        "*please use the below menu to continue \nለመቀጠል ከስር ካሉት አማራጮች አንዱን ይጫኑ።*\n \n"
+        "ስለአሰራራችን የበለጠ ለማውቅ ወይም የትኛውም ጥይቄ ካልዎት ይህንን ይጫኑ"
+    )
+
+    await update.message.reply_text(
+        message_text,
+        parse_mode='MarkdownV2', # <--- CRITICAL: Specify MarkdownV2 parsing mode
+        reply_markup=main_menu_markup # Pass the reply_markup as a separate argument
+    )
+    logger.info(f"Start message sent to user {update.effective_user.id}")
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
