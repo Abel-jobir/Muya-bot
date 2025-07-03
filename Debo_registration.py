@@ -548,8 +548,8 @@ async def greet_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "ስለአሰራራችን የበለጠ ለማውቅ ወይም የትኛውም ጥይቄ ካልዎት ይህንን ይጫኑይጫኑ", reply_markup=main_menu_markup)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-     await update.message.reply_text("\n🎉 Welcome to Debo Bot! \n🎉 እንኳን ወደ ደቦ ቦት በሰላም መጡ \n \n✅ this bot is used to registor any Ethiopian professionals who are interested to find new job opportunities from thier nighbour to thier city. \n \n ⚠️any information you give to this bot will be given to people that want your contact to make you work for them \n \nplease use the below menu to continue \n \n✅ይህ ቦት የሙያ ባለቤት የሆኑ ማንኛውም  ኢትይጵያውያንን የምንመዘግብበትና ባቅርያብያቸው ያሉ የስራ እድሎችን እንዲያገኙ ከባለሙያ ፈላጊዎች ጋር በቀላሉ እንዲገናኙ የምናደርግበት ነው። \n " \
-         " \n⚠️ በዚህ ቦት ላይ የሚያጋሯቸው መርጃዎችዎ ስራ ሊያሰሯችሁችሁ ለሚፈልጉ ሰዎች ይጋራሉ። \n \nለመቀጠል ከከስር ካሉት አማራጮች አንዱን ይጫኑ። \n \n ስለአሰራራችን የበለጠ ለማውቅ ወይም የትኛውም ጥይቄ ካልዎት ይህንን ይጫኑ", reply_markup=main_menu_markup)
+     await update.message.reply_text("\n🎉 Welcome to Debo Bot! \n🎉 እንኳን ወደ ደቦ ቦት በሰላም መጡ \n \n📌 this bot is used to registor any Ethiopian professionals who are interested to find new job opportunities from thier nighbour to thier city. \n \n 📌any information you give to this bot will be given to people that want your contact to make you work for them \n \nplease use the below menu to continue \n \n📌ይህ ቦት የሙያ ባለቤት የሆኑ ማንኛውም  ኢትይጵያውያንን የምንመዘግብበትና ባቅርያብያቸው ያሉ የስራ እድሎችን እንዲያገኙ ከባለሙያ ፈላጊዎች ጋር በቀላሉ እንዲገናኙ የምናደርግበት ነው። \n " \
+         " \n⚠📌 በዚህ ቦት ላይ የሚያጋሯቸው መርጃዎችዎ ስራ ሊያሰሯችሁችሁ ለሚፈልጉ ሰዎች ይጋራሉ። \n \nለመቀጠል ከከስር ካሉት አማራጮች አንዱን ይጫኑ። \n \n ስለአሰራራችን የበለጠ ለማውቅ ወይም የትኛውም ጥይቄ ካልዎት ይህንን ይጫኑ", reply_markup=main_menu_markup)
 
 
 
@@ -577,14 +577,15 @@ async def get_full_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print("USER DATA:", context.user_data)
     await update.message.reply_text(
     "🛠️Enter your profession: / ሙያዎን ያስገቡ\n\n"
-    "⚠️ እባክዎን የተሰማሩበትን የስራ ዘርፍ በጥንቃቄ እና በግልጽ ይጻፉ።\n\n"
+    "📌 እባክዎን የተሰማሩበትን የትኛውንም የስራ ዘርፍ በጥንቃቄ እና በግልጽ ይጻፉ።\n\n"
     "*ለምሳሌ:*\n"
     "✔ ዶክተር ከማለት ኦንኮሎጂስት\n"
     "✔ የቧምቧ ባለሙያ\n"
     "✔ ኢንጂነር ከማለት ሲቪል ኢንጂነር\n"
     "✔ ተምላላሽ ሰራተኛ\n"
     "✔ የኤሌክትሪክ ሰራተኛ\n"
-    "✔ ጠበቃ",
+    "✔ ጠበቃ\n",
+    
     parse_mode="Markdown"
     )
     return PROFESSION
