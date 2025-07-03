@@ -592,7 +592,7 @@ async def get_full_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_profession(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['PROFESSION'] = update.message.text
-    await update.message.reply_text("📞Enter your phone number: / ስል ቁጥርዎን ያስገቡ")
+    await update.message.reply_text("📞Enter your phone number: / ስልክ ቁጥርዎን ያስገቡ")
     return PHONE
 
 async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -604,7 +604,7 @@ async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['phone'] = phone_number
     location_button = [[KeyboardButton("📍Share Location / የርስዎን ወይም የቢሮዎን መገኛ ያጋሩ ", request_location=True)], [KeyboardButton("Skip / አሳልፍ")]]
     await update.message.reply_text(
-        "Share your location or press Skip:/ የርስዎን ወይም የቢሮዎን መገኛ ያጋሩ ወይም Skip / አሳልፍ ይጫኑ",
+        "📍  Share your or your business's location or press Skip:/ የርስዎን ወይም የቢሮዎን መገኛ ያጋሩ ወይም Skip / አሳልፍ ይጫኑ",
         reply_markup=ReplyKeyboardMarkup(location_button, one_time_keyboard=True, resize_keyboard=True)
     )
     return LOCATION
@@ -618,7 +618,7 @@ async def get_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         location = "Not shared"
     context.user_data['location'] = location  # NEW
-    await update.message.reply_text("📍Enter your city / Region , subcity, wereda  \n የሚገኙበትን ክልል / ከተማ፣ ክፍለ ከተማ ፣ ወረዳ በቅደም ተከተል ያስገቡ \n ለምሳሌ ✅ አዲስ አበባ፣ አዲስ ከተማ፣ 11")
+    await update.message.reply_text("🏙️  Enter yours or  your business's city / Region , subcity, wereda  \n የሚገኙበትን ክልል / ከተማ፣ ክፍለ ከተማ ፣ ወረዳ በቅደም ተከተል ያስገቡ \n *ለምሳሌ*\n✔  አዲስ አበባ፣ አዲስ ከተማ፣ 11", parse_mode="Markdown")
     return  REGION_CITY_WOREDA  # Let the user input it next
 
 
@@ -629,7 +629,7 @@ async def handle_region_city_woreda(update: Update, context: ContextTypes.DEFAUL
 
 async def ask_for_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "📄Please upload your testimonial documents or images. You can upload multiple. use the buttons below skip or finish : \n እርስዎ ከዚ በፊት የሰርዋቸው እንደማስረጃ የሚያገለግሉ ስራዎችዎን ያስገቡ። \n \n ✅ የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። \n \n ✅ከአንድ በላይ ፋይል ማስግባት ይችላሉ። \n \n ✅ አስገብተው ሲጨርሱ Done /ጨርሻለው የሚለውን ይጫኑ። \n \n ✅ የሚያስገቡት ማስረጃ ከሌሎት skip /አሳልፍን ይጫኑ።ይጫኑ።",
+        "📄Please upload your testimonial documents or images. You can upload multiple. use the buttons below skip or finish : \n እርስዎ ከዚ በፊት የሰርዋቸው እንደማስረጃ የሚያገለግሉ ስራዎችዎን ያስገቡ። \n \n 📌  የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። \n \n 📌  ከአንድ በላይ ፋይል ማስግባት ይችላሉ። \n \n 📌  አስገብተው ሲጨርሱ Done /ጨርሻለው የሚለውን ይጫኑ። \n \n 📌  የሚያስገቡት ማስረጃ ከሌሎት skip /አሳልፍን ይጫኑ።",
         reply_markup=skip_done_markup # Show keyboard immediately
     )
     context.user_data['testimonial_links'] = []
@@ -698,7 +698,7 @@ async def handle_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def ask_for_educational_docs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🎓Please upload your educational background documents or images. You can upload multiple files. Or use the buttons below:  \n የትምህርት ማስረጃ ካልዎትያስገቡ። \n✅ የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። \n ✅ከአንድ በላይ ፋይል ማስግባት ይችላሉ። ✅ አስገብተው ሲጨርሱ Done /ጨርሻለው የሚለውን ይጫኑ። \n ✅ የሚያስገቡት ማስረጃ ከሌሎት skip /አሳልፍን ይጫኑ።ይጫኑ።",
+        "🎓  Please upload your educational background documents or images. You can upload multiple files. Or use the buttons below:  \n የትምህርት ማስረጃ ካልዎትያስገቡ። \n\n📌 የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። \n\n 📌ከአንድ በላይ ፋይል ማስግባት ይችላሉ።\n\n 📌  አስገብተው ሲጨርሱ Done /ጨርሻለው የሚለውን ይጫኑ። \n 📌  የሚያስገቡት ማስረጃ ከሌሎት skip /አሳልፍን ይጫኑ።ይጫኑ።",
          reply_markup=skip_done_markup # Show keyboard immediately
     )
     context.user_data['education_links'] = []
@@ -820,7 +820,7 @@ async def finish_registration(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         # --- Step 4: Confirm success to the user and clear data ---
         await update.message.reply_text(
-            "✅Congradulations! Registration complete! from now on people who needs your profession will get you easily.\n እንኳን ደስ አለዎት ምዝገባዎን አጠናቀዋል። \n ከዚህ በኋላ ማንኛውም የርስዎን ሙያ የሚፈልግ ሰው በቀላሉ ያገኝዎታል!!!",
+            "📌  Congradulations! Registration complete! from now on people   who needs your profession will get you easily.\n\n እንኳን ደስ አለዎት ምዝገባዎን አጠናቀዋል። \n ከዚህ በኋላ ማንኛውም የርስዎን ሙያ የሚፈልግ ሰው በቀላሉ ያገኝዎታል!!!",
             reply_markup=main_menu_markup
         )
         logger.info(f"Registration successfully completed and confirmed for user {user_id}.")
