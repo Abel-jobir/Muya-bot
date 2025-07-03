@@ -895,12 +895,12 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         text = (
-            f"👋 Welcome: {row['Full_Name']} your information is:\n"
-            f"    እንኳን ደህና መጡ: {row['Full_Name']} መረጃዎ:\n "
-            f"Name: {row['Full_Name']}\n"
-            f"Profession: {row['PROFESSION']}\n"
-            f"Phone: {row['PHONE']}\n"
-            f"Location: {row['LOCATION']}"
+            f"👋  Welcome {row['Full_Name']} your information is:\n"
+            f" እንኳን ደህና መጡ {row['Full_Name']} መረጃዎ:\n\n"
+            f"📌  Name: {row['Full_Name']}\n\n"
+            f"📌  Profession: {row['PROFESSION']}\n\n"
+            f"📌  Phone: {row['PHONE']}\n\n"
+            f"📌  Location: {row['LOCATION']}"
         )
         await update.message.reply_text(text, reply_markup=main_menu_markup)
     except KeyError as e:
