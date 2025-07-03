@@ -900,9 +900,9 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📌  *Name:* {row['Full_Name']}\n\n"
             f"📌  *Profession:* {row['PROFESSION']}\n\n"
             f"📌  *Phone:* {row['PHONE']}\n\n"
-            f"📌  *Location:* {row['LOCATION']}", parse_mode="Markdown"
+            f"📌  *Location:* {row['LOCATION']}"
         )
-        await update.message.reply_text(text, reply_markup=main_menu_markup)
+        await update.message.reply_text(text, reply_markup=main_menu_markup, parse_mode="Markdown")
     except KeyError as e:
         logger.error(f"KeyError in profile for user {user_id}: {e}. Row data: {row}", exc_info=True)
         await update.message.reply_text("Your profile seems incomplete. Please re-register. / ምዝገባዎ አ እባክዎ ምዝገባ የሚለውን ተጭነው እንደገና ይመዝገቡ።", reply_markup=main_menu_markup)
