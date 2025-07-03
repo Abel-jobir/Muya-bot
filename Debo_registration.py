@@ -71,13 +71,13 @@ COLUMN_MAP = {
 }
 # Map callback data (used in InlineKeyboard) to field names and states
 EDIT_OPTIONS = {
-    "edit_name": {"name": "Full_Name", "next_state": GET_NEW_VALUE, "prompt": "Enter your updated full name:", "handler": "get_new_text_value"},
-    "edit_profession": {"name": "PROFESSION", "next_state": GET_NEW_VALUE, "prompt": "Enter your updated profession:", "handler": "get_new_text_value"},
-    "edit_phone": {"name": "PHONE", "next_state": GET_NEW_VALUE, "prompt": "Enter your updated phone number:", "handler": "get_new_text_value"},
-    "edit_location": {"name": "LOCATION", "next_state": GET_NEW_LOCATION, "prompt": "Share your updated location or type 'skip':", "handler": "get_new_location_value"},
-    "edit_address": {"name": "Region/City/Woreda", "next_state": GET_NEW_VALUE, "prompt": "Enter your updated Region, City, Woreda:", "handler": "get_new_text_value"},
-    "edit_testimonials": {"name": "Testimonials", "next_state": GET_NEW_TESTIMONIALS, "prompt": "Upload *all* your new testimonial documents/images. Type 'done' when finished or 'skip'.", "handler": "handle_new_files"},
-    "edit_education": {"name": "Educational Docs", "next_state": GET_NEW_EDUCATIONAL_DOCS, "prompt": "Upload *all* your new educational documents/images. Type 'done' when finished or 'skip'.", "handler": "handle_new_files"},
+    "edit_name": {"name": "Full_Name", "next_state": GET_NEW_VALUE, "prompt": "📝  Enter your updated full name:", "handler": "get_new_text_value"},
+    "edit_profession": {"name": "PROFESSION", "next_state": GET_NEW_VALUE, "prompt": "🛠️  Enter your updated profession:", "handler": "get_new_text_value"},
+    "edit_phone": {"name": "PHONE", "next_state": GET_NEW_VALUE, "prompt": "📞  Enter your updated phone number:", "handler": "get_new_text_value"},
+    "edit_location": {"name": "LOCATION", "next_state": GET_NEW_LOCATION, "prompt": "📍  Share your updated location or type 'skip':", "handler": "get_new_location_value"},
+    "edit_address": {"name": "Region/City/Woreda", "next_state": GET_NEW_VALUE, "prompt": "🌇  Enter your updated Region, City, Woreda:", "handler": "get_new_text_value"},
+    "edit_testimonials": {"name": "Testimonials", "next_state": GET_NEW_TESTIMONIALS, "prompt": "📄  Upload *all* your new testimonial documents/images. Type 'done' when finished or 'skip'.", "handler": "handle_new_files"},
+    "edit_education": {"name": "Educational Docs", "next_state": GET_NEW_EDUCATIONAL_DOCS, "prompt": "🎓  Upload *all* your new educational documents/images. Type 'done' when finished or 'skip'.", "handler": "handle_new_files"},
 }
 
 
