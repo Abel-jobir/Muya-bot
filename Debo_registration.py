@@ -629,7 +629,7 @@ async def handle_region_city_woreda(update: Update, context: ContextTypes.DEFAUL
 
 async def ask_for_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "📄  Please upload your testimonial documents or images. You can upload multiple. use the buttons below skip or finish : \nእርስዎ ከዚ በፊት የሰርዋቸው እንደማስረጃ የሚያገለግሉ ስራዎችዎን ያስገቡ። \n \n 📌  የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። \n \n 📌  ከአንድ በላይ ፋይል ማስግባት ይችላሉ። \n \n 📌  አስገብተው ሲጨርሱ Done /ጨርሻለው የሚለውን ይጫኑ። \n \n 📌  የሚያስገቡት ማስረጃ ከሌሎት skip /አሳልፍን ይጫኑ።",
+        "📄  Please upload your testimonial documents or images. You can upload multiple. use the buttons below skip or finish : \nእርስዎ ከዚ በፊት የሰርዋቸው እንደማስረጃ የሚያገለግሉ ስራዎችዎን ያስገቡ። \n \n 📌  የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። \n \n 📌  ከአንድ በላይ ፋይል ማስግባት ይችላሉ። \n \n 📌  አስገብተው ሲጨርሱ Done /ጨርሻለው የሚለውን ይጫኑ። \n \n📌  የሚያስገቡት ማስረጃ ከሌሎት skip /አሳልፍን ይጫኑ።",
         reply_markup=skip_done_markup # Show keyboard immediately
     )
     context.user_data['testimonial_links'] = []
@@ -748,7 +748,7 @@ async def handle_educational_docs(update: Update, context: ContextTypes.DEFAULT_
             context.user_data['educational_links'].append(link)
             logger.info(f"Uploaded educational file for user {update.effective_user.id}: {link}")
 
-            await update.message.reply_text("File received. Upload more or select an option: ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
+            await update.message.reply_text("📥  File received. Upload more or select an option:\n\n ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
             return EDUCATIONAL_DOCS
 
         except Exception as e:
