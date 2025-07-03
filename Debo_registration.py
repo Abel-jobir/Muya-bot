@@ -604,7 +604,7 @@ async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['phone'] = phone_number
     location_button = [[KeyboardButton("📍Share Location / የርስዎን ወይም የቢሮዎን መገኛ ያጋሩ ", request_location=True)], [KeyboardButton("Skip / አሳልፍ")]]
     await update.message.reply_text(
-        "📍  Share your or your business's location or press Skip:/ የርስዎን ወይም የቢሮዎን መገኛ ያጋሩ ወይም Skip / አሳልፍ ይጫኑ",
+        "📍  Share your or your business's location or press Skip:/ የርስዎን     ወይም የቢሮዎን መገኛ ያጋሩ ወይም Skip / አሳልፍ ይጫኑ።",
         reply_markup=ReplyKeyboardMarkup(location_button, one_time_keyboard=True, resize_keyboard=True)
     )
     return LOCATION
@@ -618,7 +618,7 @@ async def get_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         location = "Not shared"
     context.user_data['location'] = location  # NEW
-    await update.message.reply_text("🏙️  Enter yours or  your business's city / Region , subcity, wereda  \n የሚገኙበትን ክልል / ከተማ፣ ክፍለ ከተማ ፣ ወረዳ በቅደም ተከተል ያስገቡ \n *ለምሳሌ*\n✔  አዲስ አበባ፣ አዲስ ከተማ፣ 11", parse_mode="Markdown")
+    await update.message.reply_text("🌇  Enter yours or  your business's city / Region , subcity, wereda  \n የሚገኙበትን ክልል / ከተማ፣ ክፍለ ከተማ ፣ ወረዳ በቅደም ተከተል ያስገቡ \n *ለምሳሌ*\n✔  አዲስ አበባ፣ አዲስ ከተማ፣ 11", parse_mode="Markdown")
     return  REGION_CITY_WOREDA  # Let the user input it next
 
 
@@ -629,7 +629,7 @@ async def handle_region_city_woreda(update: Update, context: ContextTypes.DEFAUL
 
 async def ask_for_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "📄Please upload your testimonial documents or images. You can upload multiple. use the buttons below skip or finish : \n እርስዎ ከዚ በፊት የሰርዋቸው እንደማስረጃ የሚያገለግሉ ስራዎችዎን ያስገቡ። \n \n 📌  የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። \n \n 📌  ከአንድ በላይ ፋይል ማስግባት ይችላሉ። \n \n 📌  አስገብተው ሲጨርሱ Done /ጨርሻለው የሚለውን ይጫኑ። \n \n 📌  የሚያስገቡት ማስረጃ ከሌሎት skip /አሳልፍን ይጫኑ።",
+        "📄  Please upload your testimonial documents or images. You can upload multiple. use the buttons below skip or finish : \nእርስዎ ከዚ በፊት የሰርዋቸው እንደማስረጃ የሚያገለግሉ ስራዎችዎን ያስገቡ። \n \n 📌  የትኛውንም የፋይል አይነት ማስገባት ይችላሉ። \n \n 📌  ከአንድ በላይ ፋይል ማስግባት ይችላሉ። \n \n 📌  አስገብተው ሲጨርሱ Done /ጨርሻለው የሚለውን ይጫኑ። \n \n 📌  የሚያስገቡት ማስረጃ ከሌሎት skip /አሳልፍን ይጫኑ።",
         reply_markup=skip_done_markup # Show keyboard immediately
     )
     context.user_data['testimonial_links'] = []
@@ -679,7 +679,7 @@ async def handle_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE
             context.user_data['testimonial_links'].append(link)
             logger.info(f"Uploaded testimonial file for user {update.effective_user.id}: {link}")
 
-            await update.message.reply_text("File received. Upload more or select an option: ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
+            await update.message.reply_text("📥  File received. Upload more or select an option:\n\n ማስረጃዎን በትክክል አስገብተዋል። ተጨማሪ ማስረጃ ያስገቡ ወይም ታች ካሉት አማርጮች አንዱን ይጠቀሙ።", reply_markup=skip_done_markup)
             return TESTIMONIALS
 
         except Exception as e:
