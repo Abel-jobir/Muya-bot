@@ -895,7 +895,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         text = (
-            f"Name: {row['Full_Name']}\n"
+            f"Name:.. {row['Full_Name']}\n"
             f"Profession: {row['PROFESSION']}\n"
             f"Phone: {row['PHONE']}\n"
             f"Location: {row['LOCATION']}"
