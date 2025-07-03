@@ -575,7 +575,7 @@ async def get_full_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['username'] = user.username if user.username else "Not set"
     context.user_data['full_name'] = update.message.text
     print("USER DATA:", context.user_data)
-    await update.message.reply_text("🛠️Enter your profession: / ሙያዎን ያስገቡ \n⚠️ እባክዎን የተሰማሩበትን የስራ ዘርፍ በጥንቃቄ እና በግልጽ ይጻፉ።። \n \n ለምሳሌ ✅ ዶክተር ከማለት ኦንኮሎጂስት \n \n ✅ የቧምቧ ባለሙያ \n \n✅ ኢንጂነር ከማለት ሲቪል ኢንጂነር \n \n ✅ ተምላላሽ ሰራተኛ \n \n ✅ የኤሌክትሪክ ሰራተኛ \n \n✅ጠበቃ")
+    await update.message.reply_text("🛠️Enter your profession: / ሙያዎን ያስገቡ \n \n⚠️ እባክዎን የተሰማሩበትን የስራ ዘርፍ በጥንቃቄ እና በግልጽ ይጻፉ።። \n \n                   ለምሳሌ \n ✔ ዶክተር ከማለት ኦንኮሎጂስት \n \n ✔ የቧምቧ ባለሙያ \n \n✔ ኢንጂነር ከማለት ሲቪል ኢንጂነር \n \n ✔ ተምላላሽ ሰራተኛ \n \n ✔ የኤሌክትሪክ ሰራተኛ \n \n✔ጠበቃ")
     return PROFESSION
 
 async def get_profession(update: Update, context: ContextTypes.DEFAULT_TYPE):
