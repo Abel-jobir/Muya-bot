@@ -943,6 +943,7 @@ async def editprofile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Which information would you like to update? / የትኛውን መረጃዎን ማስተካከል ይፈልጋሉ?", reply_markup=reply_markup)
     return ASK_EDIT_FIELD
 
+
 async def ask_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the user's choice of field to edit."""
     query = update.callback_query
@@ -974,12 +975,12 @@ async def ask_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Send the prompt for the specific field with the appropriate reply markup
     reply_markup_to_send = ReplyKeyboardRemove() # Default: remove keyboard
 
-    if edit_option['name'] == "Location":
+    # !!! CRITICAL FIX: Change "Location" to "LOCATION" to match the actual key from EDIT_OPTIONS
+    if edit_option['name'] == "LOCATION": # <-- Changed this line
         location_button = [[KeyboardButton("📍Share Location / የርስዎን ወይም የቢሮዎን መገኛ ያጋሩ ", request_location=True)],
                            [KeyboardButton("Skip / አሳልፍ")]]
-        # TEMPORARY TEST: Removed one_time_keyboard=True to see if it helps display
-        # If this fixes it, you can decide whether to keep it or investigate client behavior.
-        reply_markup_to_send = ReplyKeyboardMarkup(location_button, resize_keyboard=True) # Removed one_time_keyboard=True for testing
+        # Removed one_time_keyboard=True for testing (as per previous debugging step)
+        reply_markup_to_send = ReplyKeyboardMarkup(location_button, resize_keyboard=True)
         logger.info(f"For user {user_id}: Prepared ReplyKeyboardMarkup for Location. Debug: {reply_markup_to_send.to_dict()}")
     elif edit_option['name'] in ["Testimonials", "Educational Docs"]:
         context.user_data['new_file_links'] = []
