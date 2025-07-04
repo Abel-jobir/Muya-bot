@@ -946,14 +946,12 @@ async def editprofile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ask_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the user's choice of field to edit."""
     query = update.callback_query
-    user_id = query.from_user.id # Get user ID for logging
     await query.answer() # Acknowledge callback
 
     if query.data == "edit_cancel":
         await query.edit_message_text("Edit cancelled. / ማስተካክየ አቋርጠዋል።", reply_markup=None)
         context.user_data.clear()
         await context.bot.send_message(chat_id=query.message.chat_id, text="Main Menu:", reply_markup=main_menu_markup)
-        logger.info(f"User {user_id} cancelled edit profile.")
         return ConversationHandler.END
 
     edit_option = EDIT_OPTIONS.get(query.data)
@@ -961,38 +959,23 @@ async def ask_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Invalid option selected. Please try again። / የተሳሳተ አማርጭ መርጠዋል። እንደገና ይሞክሩ።")
         context.user_data.clear()
         await context.bot.send_message(chat_id=query.message.chat_id, text="Main Menu:", reply_markup=main_menu_markup)
-        logger.warning(f"User {user_id} selected invalid edit option: {query.data}")
         return ConversationHandler.END
 
     context.user_data['editing_field'] = edit_option['name']
     context.user_data['next_edit_state'] = edit_option['next_state']
 
-    # Remove the inline keyboard from the previous message
     await query.edit_message_reply_markup(reply_markup=None)
-    logger.info(f"User {user_id} selected to edit '{edit_option['name']}'. Removed inline keyboard.")
 
-    # Send the prompt for the specific field with the appropriate reply markup
-    reply_markup_to_send = ReplyKeyboardRemove() # Default: remove keyboard
-
+    reply_markup_to_send = ReplyKeyboardRemove()
     if edit_option['name'] == "Location":
-        location_button = [[KeyboardButton("📍Share Location / የርስዎን ወይም የቢሮዎን መገኛ ያጋሩ ", request_location=True)],
-                           [KeyboardButton("Skip / አሳልፍ")]]
-        # TEMPORARY TEST: Removed one_time_keyboard=True to see if it helps display
-        # If this fixes it, you can decide whether to keep it or investigate client behavior.
-        reply_markup_to_send = ReplyKeyboardMarkup(location_button, resize_keyboard=True) # Removed one_time_keyboard=True for testing
-        logger.info(f"For user {user_id}: Prepared ReplyKeyboardMarkup for Location. Debug: {reply_markup_to_send.to_dict()}")
+        location_button = [[KeyboardButton("Share Location / አካባቢዎን ያጋሩ ", request_location=True)], [KeyboardButton("Skip / አሳልፍ")]]
+        reply_markup_to_send=ReplyKeyboardMarkup(location_button, one_time_keyboard=True, resize_keyboard=True)
     elif edit_option['name'] in ["Testimonials", "Educational Docs"]:
         context.user_data['new_file_links'] = []
         context.user_data['file_type_being_edited'] = edit_option['name']
         reply_markup_to_send = skip_done_markup
-        logger.info(f"For user {user_id}: Prepared skip_done_markup for {edit_option['name']}.")
-    else:
-        logger.info(f"For user {user_id}: No special reply markup for {edit_option['name']}. Sending ReplyKeyboardRemove.")
-
 
     await query.message.reply_text(edit_option['prompt'], reply_markup=reply_markup_to_send)
-    logger.info(f"User {user_id} received prompt for '{edit_option['name']}'. Next state: {edit_option['next_state']}")
-
     return edit_option['next_state']
 
 
