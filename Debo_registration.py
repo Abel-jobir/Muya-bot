@@ -564,7 +564,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _, existing = find_user_row(user_id, worksheet) # <--- MODIFIED
     if existing:
-        await update.message.reply_text("ℹ️You are already registered. / ደቦ ላይ ተመዝግበዋል", reply_markup=main_menu_markup)
+        await update.message.reply_text("ℹ️You are already registered muya. / ሙያ ላይ ተመዝግበዋል", reply_markup=main_menu_markup)
         return ConversationHandler.END
     await update.message.reply_text("📝Enter your full name: / ሙሉ ስምዎን ያስገቡ", reply_markup=ReplyKeyboardRemove())
     return FULL_NAME
