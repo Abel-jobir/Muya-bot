@@ -320,31 +320,31 @@ async def send_rating_to_apps_script(professional_id: str, rating_value: int, us
         "rating": rating_value,
         "user_telegram_id": str(user_telegram_id)
     }
-    headers = {
-        "Content-Type": "application/json"
-    }
+
+    # --- START DEBUGGING LOGS (Python side) ---
+    logger.info(f"Attempting to send rating to Apps Script.")
+    logger.info(f"Apps Script URL: {APPS_SCRIPT_WEB_APP_URL}")
+    logger.info(f"Payload being sent: {json.dumps(payload)}")
+    # --- END DEBUGGING LOGS ---
 
     try:
-        response = requests.post(APPS_SCRIPT_WEB_APP_URL, data=json.dumps(payload), headers=headers)
-        response.raise_for_status()
+        # !!! CRITICAL FIX: Use 'json' parameter instead of 'data'
+        response = requests.post(APPS_SCRIPT_WEB_APP_URL, json=payload) # Headers are automatically set to application/json
+        response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
 
         response_json = response.json()
         if response_json.get("success"):
-            pro_name = professional_names_lookup.get(professional_id, professional_id) # <--- CHANGE THIS LINE
+            pro_name = professional_names_lookup.get(professional_id, professional_id)
             await query_object.edit_message_text(
-                text=f"✅ Thanks! Your *{rating_value}-star* rating for professional *{pro_name}* has been recorded.", # <--- CHANGE THIS LINE (use pro_name)
+                text=f"✅ Thanks! Your *{rating_value}-star* rating for professional *{pro_name}* has been recorded.",
                 parse_mode='Markdown',
                 reply_markup=None
             )
-            logger.info(f"Successfully sent rating for {professional_id} by {user_telegram_id}: {rating_value} stars.")
+            logger.info(f"Successfully sent rating for {professional_id} by {user_telegram_id}: {rating_value} stars. Apps Script response: {response_json}")
 
-            # --- NEW LOGIC: Store that this professional has been rated ---
-            # CORRECTED: Use the global user_specific_data dictionary
-            # Ensure the user's entry exists before trying to access its keys
             if user_telegram_id not in user_specific_data:
                 user_specific_data[user_telegram_id] = {'initial_professional_ids': [], 'rated_professional_ids': set()}
             user_specific_data[user_telegram_id]['rated_professional_ids'].add(professional_id)
-            # --- END NEW LOGIC ---
 
             await send_follow_up_rating_prompt(user_telegram_id, context)
 
@@ -352,23 +352,21 @@ async def send_rating_to_apps_script(professional_id: str, rating_value: int, us
             error_message = response_json.get("error", "Unknown error from server.")
             await query_object.edit_message_text(
                 text=f"❌ Failed to record rating: _{error_message}_. Please try again later."
-                f"\n\n_If the problem persists, contact support._",
+                     f"\n\n_If the problem persists, contact support._",
                 parse_mode='Markdown',
                 reply_markup=None
             )
-            logger.error(f"Error from Apps Script for rating ({professional_id}, {rating_value}): {error_message}")
+            logger.error(f"Error from Apps Script for rating ({professional_id}, {rating_value}): {error_message}. Full response: {response_json}")
 
     except requests.exceptions.RequestException as e:
         await query_object.edit_message_text(
             text="❌ Failed to connect to rating service. Please try again later."
-            f"\n\n_Network error: {e}_",
+                 f"\n\n_Network error: {e}_",
             parse_mode='Markdown',
             reply_markup=None
         )
-        logger.error(f"HTTP request failed during rating for {professional_id}: {e}")
+        logger.error(f"HTTP request failed during rating for {professional_id}: {e}", exc_info=True)
 
-
-# CODE.txt (Replace your existing send_manual_rating_command function)
 
 async def request_feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
