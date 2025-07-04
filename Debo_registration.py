@@ -270,6 +270,7 @@ async def handle_rating_callback(update: Update, context: ContextTypes.DEFAULT_T
             # Parse the data: "rate_PROFESSIONALID_RATING"
             parts = callback_data.split('_')
             professional_id = parts[1]
+            logger.info(f"handle_rating_callback: Extracted professional_id: '{professional_id}' from callback_data: '{callback_data}'")
             rating_value = int(parts[2])
 
             # Make the HTTP POST request to Apps Script
