@@ -1016,7 +1016,7 @@ async def get_new_text_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
     success = await update_sheet_cell(context, field_name, new_value)
 
     if success:
-        await update.message.reply_text(f"📌 Your {field_name.lower()} has been updated. \n የ{field_name.lower()} ተስተካክሏል።", reply_markup=main_menu_markup)
+        await update.message.reply_text(f"📌 Your {field_name.lower()} has been updated. \n የ{field_name.lower()} መረጃዎ ተስተካክሏል።", reply_markup=main_menu_markup)
     else:
         await update.message.reply_text("❌ Sorry, there was an error updating your information. Please try again later. \n ትንሽ ቆይተው እንደገና ይሞክሩ።", reply_markup=main_menu_markup)
 
