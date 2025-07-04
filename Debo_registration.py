@@ -195,6 +195,7 @@ async def send_rating_request(chat_id: int, professional_id_to_rate: str, contex
     """
     Sends a message to the user with inline buttons for rating a specific professional.
     """
+    logger.info(f"send_rating_request: Received professional_id_to_rate: '{professional_id_to_rate}' for chat_id: {chat_id}")
     keyboard = [
         [
             InlineKeyboardButton("⭐ 1", callback_data=f"rate_{professional_id_to_rate}_1"),
