@@ -218,35 +218,39 @@ async def send_rating_request(chat_id: int, professional_id_to_rate: str, contex
     )
     logger.info(f"Rating request sent to {chat_id} for professional: {professional_id_to_rate}")
 
-
 async def send_initial_feedback_message(chat_id: int, professional_ids: list[str], context: ContextTypes.DEFAULT_TYPE):
     """
     Sends the initial feedback message to the user with choices including individual Professionals.
     Stores the professional_ids in user_data for later reference.
     """
-    # Store the list of Professionals sent for this user, so we can refer back to them later.
     user_specific_data[chat_id] = {'initial_professional_ids': professional_ids, 'rated_professional_ids': set()}
     keyboard = []
 
-    # Add the static choices
     keyboard.append([InlineKeyboardButton("I will not contact them", callback_data="feedback_no_contact")])
     keyboard.append([InlineKeyboardButton("I will contact them soon", callback_data="feedback_will_contact")])
     keyboard.append([InlineKeyboardButton("Please don't send me this message again", callback_data="feedback_opt_out")])
 
-    # Add buttons for each professional
-    keyboard.append([InlineKeyboardButton("--- Choose Professional(s) You Contacted ---", callback_data="ignore_me")]) # Separator
+    keyboard.append([InlineKeyboardButton("--- Choose Professional(s) You Contacted ---", callback_data="ignore_me")])
 
     logger.info(f"send_initial_feedback_message: Received professional_ids from admin command: {professional_ids}")
-  
-    for pro_id in professional_ids:
-        # Assuming you want to display the ID on the button. You could fetch names if needed.
-        pro_name = professional_names_lookup.get(pro_id, pro_id) # <--- CHANGE THIS LINE
-        keyboard.append([InlineKeyboardButton(pro_name, callback_data=f"feedback_select_pro_{pro_id}")])
+
+    for pro_id_from_list in professional_ids: # Renamed loop variable for clarity
+        # Ensure pro_id_from_list is a string before using it as a dictionary key or in f-string
+        current_pro_id_str = str(pro_id_from_list)
+        pro_name = professional_names_lookup.get(current_pro_id_str, current_pro_id_str)
+
+        # !!! CRITICAL NEW LOG !!!
+        logger.info(f"send_initial_feedback_message loop: Processing pro_id: '{current_pro_id_str}', pro_name: '{pro_name}'. Generating callback_data: 'feedback_select_pro_{current_pro_id_str}'")
+
+        keyboard.append([InlineKeyboardButton(pro_name, callback_data=f"feedback_select_pro_{current_pro_id_str}")])
+
+    # Add the static choices again at the bottom as per previous code
     keyboard.append([
         InlineKeyboardButton("I have not contacted any of them", callback_data="feedback_no_contact"),
         InlineKeyboardButton("I will contact them soon", callback_data="feedback_will_contact")
     ])
     keyboard.append([InlineKeyboardButton("Opt-out of these messages", callback_data="feedback_opt_out")])
+
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await context.bot.send_message(
@@ -256,6 +260,8 @@ async def send_initial_feedback_message(chat_id: int, professional_ids: list[str
         parse_mode='Markdown'
     )
     logger.info(f"Initial feedback message sent to {chat_id} for Professionals: {professional_ids}")
+
+
 
 # ... rest of your functions ...
 
