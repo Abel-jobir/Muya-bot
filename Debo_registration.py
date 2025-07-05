@@ -236,6 +236,8 @@ async def send_initial_feedback_message(chat_id: int, professional_ids: list[str
     # Add buttons for each professional
     keyboard.append([InlineKeyboardButton("--- Choose Professional(s) You Contacted ---", callback_data="ignore_me")]) # Separator
 
+    logger.info(f"send_initial_feedback_message: Received professional_ids from admin command: {professional_ids}")
+  
     for pro_id in professional_ids:
         # Assuming you want to display the ID on the button. You could fetch names if needed.
         pro_name = professional_names_lookup.get(pro_id, pro_id) # <--- CHANGE THIS LINE
