@@ -471,7 +471,7 @@ async def handle_initial_feedback_callback(update: Update, context: ContextTypes
         
     elif callback_data.startswith("feedback_select_pro_"):
         try:
-            professional_id = callback_data.split('_')[2]
+            professional_id = callback_data.replace("feedback_select_pro_", "")
             pro_name = professional_names_lookup.get(professional_id, professional_id)
             await query.edit_message_text(
                 text=f"You selected professional: *{pro_name}*."
