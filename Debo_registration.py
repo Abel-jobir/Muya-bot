@@ -1300,6 +1300,7 @@ async def startup_task(application: Application):
         raise ValueError("Worksheet not loaded in bot_data during final check.")
 
     await load_professional_names_from_sheet(worksheet)
+    logger.info(f"DEBUG: professional_names_lookup content after startup: {professional_names_lookup}")
     logger.info("Professional names loaded successfully on startup.")
 
 async def load_professional_names_from_sheet(worksheet):
